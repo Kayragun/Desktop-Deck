@@ -42,6 +42,22 @@ fn main() {
                 let _ = win.show();
                 #[cfg(target_os = "windows")]
                 pin_to_desktop(&win);
+
+                // "Show Desktop" jesti (3 parmak aşağı) tüm pencereleri minimize eder.
+                // Bu thread minimize'ı algılayıp hemen geri açar ve masaüstüne yeniden sabitler.
+                #[cfg(target_os = "windows")]
+                {
+                    let monitor_win = win.clone();
+                    std::thread::spawn(move || {
+                        loop {
+                            std::thread::sleep(std::time::Duration::from_millis(200));
+                            if monitor_win.is_minimized().unwrap_or(false) {
+                                let _ = monitor_win.unminimize();
+                                pin_to_desktop(&monitor_win);
+                            }
+                        }
+                    });
+                }
             }
 
             let tray_icon = Image::from_bytes(include_bytes!("../icons/32x32.png"))?;

@@ -8,6 +8,7 @@ use tauri::{
 };
 
 mod autostart;
+mod commands;
 mod config;
 
 // Pencereyi Windows Z-order'ının en altına sabitler (masaüstü seviyesi).
@@ -108,7 +109,15 @@ fn main() {
                 _ => {}
             }
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            commands::empty_recycle_bin,
+            commands::new_desktop_folder,
+            commands::flush_ram,
+            commands::clear_clipboard,
+            commands::open_display,
+            commands::panic_button,
+            commands::toggle_mic,
+        ])
         .run(tauri::generate_context!())
         .expect("Desktop Deck başlatılamadı");
 }

@@ -197,4 +197,6 @@ DeskDeck/
 
 ## License
 
-MIT — do whatever you want with it.
+This project is licensed under the [MIT License](LICENSE).
+
+You are free to use, modify, and distribute this software, but you **must** include the original copyright notice and license in any copy or substantial portion of the software. You cannot claim original ownership of this project.

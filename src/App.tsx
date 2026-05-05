@@ -1,10 +1,21 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface Action {
   id: string;
   icon: string;
   label: string;
 }
+
+const COMMANDS: Record<string, string> = {
+  recycle:   "empty_recycle_bin",
+  folder:    "new_desktop_folder",
+  ram:       "flush_ram",
+  clipboard: "clear_clipboard",
+  display:   "open_display",
+  panic:     "panic_button",
+  mic:       "toggle_mic",
+};
 
 const ACTIONS: Action[] = [
   { id: "recycle",   icon: "🗑️", label: "Recycle Bin" },
@@ -52,7 +63,11 @@ export default function App() {
                 key={a.id}
                 className={`action-btn${pressed === a.id ? " is-pressed" : ""}`}
                 onPointerDown={() => setPressed(a.id)}
-                onPointerUp={() => setPressed(null)}
+                onPointerUp={() => {
+                  setPressed(null);
+                  const cmd = COMMANDS[a.id];
+                  if (cmd) invoke(cmd).catch(console.error);
+                }}
                 onPointerLeave={() => setPressed(null)}
               >
                 <span className="btn-icon">{a.icon}</span>

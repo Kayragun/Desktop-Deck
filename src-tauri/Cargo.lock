@@ -537,7 +537,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "desk-deck"
+name = "desktop-deck"
 version = "0.1.0"
 dependencies = [
  "serde",

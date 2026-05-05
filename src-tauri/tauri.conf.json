@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DeskDeck",
+  "productName": "Desktop Deck",
   "version": "0.1.0",
-  "identifier": "com.kayra.deskdeck",
+  "identifier": "com.kayra.desktopdeck",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "DeskDeck",
+        "title": "Desktop Deck",
         "width": 280,
         "height": 420,
         "decorations": false,

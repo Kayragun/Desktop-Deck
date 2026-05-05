@@ -1,4 +1,4 @@
-/// Windows başlangıcına DeskDeck'i ekler (HKCU Run anahtarı).
+/// Windows başlangıcına Desktop Deck'i ekler (HKCU Run anahtarı).
 /// Admin yetkisi gerektirmez; Task Manager üzerinden devre dışı bırakılabilir.
 #[cfg(target_os = "windows")]
 pub fn register() {
@@ -8,7 +8,7 @@ pub fn register() {
         .args([
             "add",
             r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-            "/v", "DeskDeck",
+            "/v", "Desktop Deck",
             "/t", "REG_SZ",
             "/d", &format!("\"{}\"", exe.display()),
             "/f",

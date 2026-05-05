@@ -1,11 +1,11 @@
 [package]
-name = "desk-deck"
+name = "desktop-deck"
 version = "0.1.0"
 edition = "2021"
-description = "DeskDeck - Lightweight Desktop Widget"
+description = "Desktop Deck - Lightweight Desktop Widget"
 
 [[bin]]
-name = "desk-deck"
+name = "desktop-deck"
 path = "src/main.rs"
 
 [build-dependencies]

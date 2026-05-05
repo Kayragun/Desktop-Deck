@@ -34,7 +34,7 @@ export default function App() {
         <header className="panel-header" data-tauri-drag-region>
           <div className="header-brand" data-tauri-drag-region>
             <div className="brand-badge">D</div>
-            <span className="brand-name">DeskDeck</span>
+            <span className="brand-name">Desktop Deck</span>
           </div>
           <div className="header-grip" data-tauri-drag-region>
             <GripIcon />

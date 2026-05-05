@@ -16,7 +16,7 @@ pub struct Config {
 
 fn config_path() -> PathBuf {
     let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-    PathBuf::from(appdata).join("DeskDeck").join("config.json")
+    PathBuf::from(appdata).join("Desktop Deck").join("config.json")
 }
 
 pub fn load() -> Config {

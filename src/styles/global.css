@@ -63,7 +63,9 @@ html, body {
 /* ── Panel ──────────────────────────────────────────── */
 .panel {
   pointer-events: auto;
-  width: 264px;
+  /* Fills the overlay (window − 8px padding each side) so resize works */
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -284,11 +286,14 @@ html, body {
 }
 
 .btn-icon {
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform var(--t) var(--ease-snap);
 }
 
@@ -311,6 +316,103 @@ html, body {
 }
 
 .action-btn:hover .btn-label { color: rgba(255, 255, 255, 0.68); }
+
+/* ── Hide button ────────────────────────────────────── */
+.hide-btn {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color var(--t), background var(--t);
+}
+
+.hide-btn:hover {
+  color: var(--text-hi);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Mic muted state ────────────────────────────────── */
+.action-btn.is-muted .btn-icon {
+  filter: drop-shadow(0 0 5px rgba(255, 60, 60, 0.65))
+          sepia(1) saturate(8) hue-rotate(310deg);
+}
+
+.action-btn.is-muted {
+  border-color: rgba(255, 60, 60, 0.30);
+  background: rgba(255, 40, 40, 0.07);
+}
+
+/* ── Active/toggled button (e.g. Snippets open) ─────── */
+.action-btn.is-active {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+/* ── Snippets drawer ────────────────────────────────── */
+.snippets-drawer {
+  margin-top: 9px;
+  padding: 7px;
+  border-radius: 10px;
+  background: rgba(124, 106, 247, 0.07);
+  border: 1px solid rgba(124, 106, 247, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: toast-in 180ms var(--ease-snap) both;
+}
+
+.snippets-eyebrow {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.70;
+  margin-bottom: 2px;
+}
+
+.snippet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background var(--t), border-color var(--t);
+}
+
+.snippet-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+}
+
+.snippet-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-hi);
+  flex-shrink: 0;
+}
+
+.snippet-value {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8.5px;
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Info bar (hover description) ──────────────────── */
 .info-bar {
@@ -399,6 +501,23 @@ html, body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
 }
 
+/* ── Resize handle — absolute on .panel, never clipped ─ */
+.resize-handle {
+  position: absolute;
+  bottom: 9px;
+  right: 10px;
+  z-index: 10;
+  cursor: nwse-resize;
+  color: var(--text-lo);
+  padding: 4px;
+  border-radius: 5px;
+  line-height: 0;
+  transition: color var(--t);
+  touch-action: none;
+}
+
+.resize-handle:hover { color: var(--text-mid); }
+
 /* ── Status bar ─────────────────────────────────────── */
 .status-bar {
   position: relative;
@@ -407,7 +526,7 @@ html, body {
   align-items: center;
   gap: 7px;
   padding: 0 16px 14px;
-  margin-top: 1px;
+  margin-top: auto; /* push to bottom when panel is taller */
 }
 
 .status-beacon {

@@ -35,6 +35,13 @@ extern "system" {
         h_wnd: *mut c_void, h_wnd_insert_after: *mut c_void,
         x: i32, y: i32, cx: i32, cy: i32, u_flags: u32,
     ) -> i32;
+    fn GetWindowRect(hwnd: *mut c_void, rect: *mut c_void) -> i32;
+    fn GetDpiForWindow(hwnd: *mut c_void) -> u32;
+    fn FindWindowA(class_name: *const u8, window_name: *const u8) -> *mut c_void;
+    fn FindWindowExA(hwnd_parent: *mut c_void, hwnd_child_after: *mut c_void, class_name: *const u8, window_name: *const u8) -> *mut c_void;
+    fn SendMessageTimeoutA(hwnd: *mut c_void, msg: u32, wp: usize, lp: isize, flags: u32, timeout: u32, result: *mut usize) -> isize;
+    fn SetParent(h_wnd_child: *mut c_void, h_wnd_new_parent: *mut c_void) -> *mut c_void;
+    fn EnumWindows(proc: unsafe extern "system" fn(*mut c_void, isize) -> i32, param: isize) -> i32;
 }
 
 // ─── WINDOWPOS struct (for WM_WINDOWPOSCHANGING) ──────────────────────────────
@@ -63,6 +70,11 @@ unsafe extern "system" fn desktop_subclass(
     hwnd: *mut c_void, msg: u32, wp: usize, lp: isize,
     _uid: usize, _data: usize,
 ) -> isize {
+    // WM_SYSCOMMAND = 0x0112: block SC_MINIMIZE (0xF020) — Show Desktop uses this path
+    if msg == 0x0112 && !ALLOW_HIDE.load(Ordering::SeqCst) {
+        if wp & 0xFFF0 == 0xF020 { return 0; } // absorb minimize
+    }
+
     // WM_WINDOWPOSCHANGING = 0x0046
     if msg == 0x0046 && !ALLOW_HIDE.load(Ordering::SeqCst) {
         let pos = &mut *(lp as *mut WindowPos);
@@ -70,11 +82,36 @@ unsafe extern "system" fn desktop_subclass(
         pos.flags &= !0x80u32;
         // Detect minimize: Windows moves minimized windows to (-32000, -32000)
         if pos.x == -32000 && pos.y == -32000 {
-            // Override position back to something on screen and clear the minimize move
             pos.x = 50;
             pos.y = 50;
         }
     }
+
+    // WM_NCHITTEST = 0x0084: return HTCAPTION (2) for header area → native OS drag
+    if msg == 0x0084 {
+        let hit = DefSubclassProc(hwnd, msg, wp, lp);
+        if hit == 1 {
+            // lp = MAKELPARAM(xScreen, yScreen); extract as signed 16-bit
+            let x_scr = lp as i16 as i32;
+            let y_scr = (lp >> 16) as i16 as i32;
+            let mut rc = [0i32; 4]; // left, top, right, bottom
+            if GetWindowRect(hwnd, rc.as_mut_ptr() as *mut c_void) != 0 {
+                let dpi = GetDpiForWindow(hwnd).max(96) as i32;
+                // 8 px overlay padding + 44 px header = 52 CSS px converted to physical px
+                let header_h = 52 * dpi / 96;
+                // exclude rightmost ~38 CSS px where the × button lives
+                let win_w  = rc[2] - rc[0];
+                let btn_w  = 38 * dpi / 96;
+                let y = y_scr - rc[1];
+                let x = x_scr - rc[0];
+                if y >= 0 && y < header_h && x >= 0 && x < win_w - btn_w {
+                    return 2; // HTCAPTION
+                }
+            }
+        }
+        return hit;
+    }
+
     DefSubclassProc(hwnd, msg, wp, lp)
 }
 
@@ -98,6 +135,38 @@ fn install_subclass(win: &tauri::WebviewWindow) {
     if let Ok(hwnd) = win.hwnd() {
         unsafe { SetWindowSubclass(hwnd.0, desktop_subclass, 1, 0); }
     }
+}
+
+// ─── attach_to_desktop: embed window inside WorkerW (Rainmeter approach) ─────
+// Makes the window a child of the WorkerW that sits behind desktop icons.
+// Result: immune to Win+D, 3-finger Show Desktop, and Alt+Tab; always below apps.
+
+unsafe extern "system" fn find_worker_w(hwnd: *mut c_void, param: isize) -> i32 {
+    let slot = &mut *(param as *mut *mut c_void);
+    // WorkerW that owns the desktop icons has SHELLDLL_DefView as a child.
+    // The sibling WorkerW that comes after it in z-order is the one behind the icons.
+    let def_view = FindWindowExA(hwnd, 0usize as _, b"SHELLDLL_DefView\0".as_ptr(), 0usize as _);
+    if !def_view.is_null() {
+        *slot = FindWindowExA(0usize as _, hwnd, b"WorkerW\0".as_ptr(), 0usize as _);
+        return 0; // stop enumeration
+    }
+    1 // continue
+}
+
+unsafe fn attach_to_desktop(hwnd: *mut c_void) {
+    let progman = FindWindowA(b"Progman\0".as_ptr(), 0usize as _);
+    if progman.is_null() { return; }
+    // Send magic message that causes Explorer to spawn the WorkerW behind desktop icons
+    let mut msg_result = 0usize;
+    SendMessageTimeoutA(progman, 0x052C, 0xD, 0x01, 0, 1000, &mut msg_result);
+    // Find that WorkerW
+    let mut worker_w: *mut c_void = 0usize as _;
+    EnumWindows(find_worker_w, &mut worker_w as *mut *mut c_void as isize);
+    let parent = if !worker_w.is_null() { worker_w } else { progman };
+    SetParent(hwnd, parent);
+    // SetParent can strip WS_EX_TOOLWINDOW — restore it
+    let ex = GetWindowLongPtrA(hwnd, -20);
+    SetWindowLongPtrA(hwnd, -20, ex | 0x80);
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -128,6 +197,11 @@ fn main() {
                 pin_to_desktop(&win);
                 install_subclass(&win);
 
+                // Embed in WorkerW so Show Desktop / 3-finger gesture cannot touch us
+                if let Ok(hwnd_val) = win.hwnd() {
+                    unsafe { attach_to_desktop(hwnd_val.0); }
+                }
+
                 // Get raw HWND once; store as usize (Send) for the monitoring thread
                 if let Ok(hwnd_val) = win.hwnd() {
                     let hwnd_usize = hwnd_val.0 as usize;
@@ -137,12 +211,9 @@ fn main() {
                         if hidden_flag.load(Ordering::Relaxed) { continue; }
                         let hwnd = hwnd_usize as *mut c_void;
                         unsafe {
-                            let minimized = IsIconic(hwnd) != 0;
-                            let visible   = IsWindowVisible(hwnd) != 0;
-                            if minimized || !visible {
-                                // SW_RESTORE = 9 — unminimizes AND shows
-                                ShowWindow(hwnd, 9);
-                                pin_raw(hwnd);
+                            let visible = IsWindowVisible(hwnd) != 0;
+                            if !visible {
+                                ShowWindow(hwnd, 5); // SW_SHOW
                             }
                         }
                     });
@@ -179,12 +250,9 @@ fn main() {
                                         ALLOW_HIDE.store(false, Ordering::SeqCst);
                                     });
                                 } else {
-                                    // Hidden or minimized → restore
+                                    // Hidden → show (child windows don't minimize, use SW_SHOW)
                                     state.0.store(false, Ordering::Relaxed);
-                                    unsafe {
-                                        ShowWindow(hwnd, 9); // SW_RESTORE
-                                        pin_raw(hwnd);
-                                    }
+                                    unsafe { ShowWindow(hwnd, 5); } // SW_SHOW = 5
                                 }
                             }
                         }
@@ -212,6 +280,7 @@ fn main() {
             commands::toggle_mic,
             commands::get_mic_state,
             commands::resize_window,
+            commands::move_window,
             hide_window,
         ])
         .run(tauri::generate_context!())

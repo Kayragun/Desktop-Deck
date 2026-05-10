@@ -125,6 +125,21 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
     Ok(())
 }
 
+// ─── Move window (JS-driven drag, physical pixels) ───────────────────────────
+
+#[tauri::command]
+pub fn move_window(window: tauri::WebviewWindow, x: i32, y: i32) -> Result<(), String> {
+    extern "system" {
+        fn SetWindowPos(h: *mut c_void, ins: *mut c_void, x: i32, y: i32, cx: i32, cy: i32, f: u32) -> i32;
+    }
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    unsafe {
+        // SWP_NOSIZE=0x0001 | SWP_NOZORDER=0x0004 | SWP_NOACTIVATE=0x0010
+        SetWindowPos(hwnd.0, null_mut(), x, y, 0, 0, 0x0015);
+    }
+    Ok(())
+}
+
 // ─── Resize window (bypasses resizable:false config) ────────────────────────
 
 #[tauri::command]

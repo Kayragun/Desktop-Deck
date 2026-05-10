@@ -68,11 +68,35 @@ export default function App() {
       .catch((err: unknown) => showToast(String(err), false));
   }, [showToast]);
 
-  // Drag the window when pointer-down on the header (not on a button)
-  const handleDragStart = useCallback((e: React.PointerEvent) => {
+  // JS-based drag: tracks pointer delta and moves window via Win32 in physical pixels
+  const handleDragStart = useCallback(async (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return;
-    getCurrentWindow().startDragging().catch(() => {});
+    e.preventDefault();
+    const win = getCurrentWindow();
+    const dpr = window.devicePixelRatio || 1;
+    let initPos: { x: number; y: number };
+    try { initPos = await win.outerPosition(); } catch { return; }
+    const startX = e.screenX;
+    const startY = e.screenY;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    let rafId: number | null = null;
+    let moveX = 0, moveY = 0;
+    const onMove = (ev: PointerEvent) => {
+      moveX = Math.round((ev.screenX - startX) * dpr);
+      moveY = Math.round((ev.screenY - startY) * dpr);
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          invoke("move_window", { x: initPos.x + moveX, y: initPos.y + moveY }).catch(() => {});
+        });
+      }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", () => {
+      document.removeEventListener("pointermove", onMove);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    }, { once: true });
   }, []);
 
   // Resize handle — uses Rust command (bypasses resizable:false config)
@@ -85,8 +109,8 @@ export default function App() {
     const dpr = window.devicePixelRatio || 1;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const onMove = (ev: PointerEvent) => {
-      const newW = Math.max(240, Math.round(initW + (ev.screenX - startX) * dpr));
-      const newH = Math.max(300, Math.round(initH + (ev.screenY - startY) * dpr));
+      const newW = Math.max(Math.round(280 * dpr), Math.round(initW + (ev.screenX - startX) * dpr));
+      const newH = Math.max(Math.round(400 * dpr), Math.round(initH + (ev.screenY - startY) * dpr));
       invoke("resize_window", { width: newW, height: newH }).catch(() => {});
     };
     document.addEventListener("pointermove", onMove);

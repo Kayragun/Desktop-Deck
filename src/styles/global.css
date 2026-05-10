@@ -227,10 +227,10 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   width: 100%;
   aspect-ratio: 1 / 1;
-  padding: 8px 4px 7px;
+  padding: 6px 4px;
 
   background: var(--surface);
   border: 1px solid var(--border);
@@ -246,7 +246,7 @@ html, body {
   transition:
     background    var(--t) ease,
     border-color  var(--t) ease,
-    transform     var(--t) var(--ease-snap),
+    transform     var(--t) ease-out,
     box-shadow    var(--t) ease;
 }
 
@@ -267,7 +267,7 @@ html, body {
 .action-btn:hover {
   background: var(--surface-hover);
   border-color: var(--accent-border);
-  transform: scale(1.07) translateY(-1px);
+  transform: scale(1.04) translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.10),
     0 0 0 1px rgba(124, 106, 247, 0.12),
@@ -286,7 +286,7 @@ html, body {
 }
 
 .btn-icon {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
   position: relative;

@@ -125,6 +125,18 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
     Ok(())
 }
 
+// ─── Snippets ─────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_snippets() -> Vec<crate::config::Snippet> {
+    crate::config::load_snippets()
+}
+
+#[tauri::command]
+pub fn save_snippets(snippets: Vec<crate::config::Snippet>) {
+    crate::config::save_snippets(&snippets);
+}
+
 // ─── Move window (JS-driven drag, physical pixels) ───────────────────────────
 
 #[tauri::command]

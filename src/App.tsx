@@ -2,14 +2,14 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-// ─── Snippets config — edit `text` to personalise ────────────────────────────
-const SNIPPET_LIST = [
-  { id: "s1", label: "Email",  text: "yourname@example.com" },
-  { id: "s2", label: "Phone",  text: "+90 555 000 00 00" },
-  { id: "s3", label: "IBAN",   text: "TR00 0000 0000 0000 0000 0000 00" },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Snippet { id: string; label: string; text: string; }
+interface Action   { id: string; label: string; description: string; }
+interface Toast    { msg: string; ok: boolean; key: number; }
 
 // ─── Command map ─────────────────────────────────────────────────────────────
+
 const COMMANDS: Record<string, string> = {
   recycle:   "empty_recycle_bin",
   folder:    "new_desktop_folder",
@@ -19,8 +19,6 @@ const COMMANDS: Record<string, string> = {
   panic:     "panic_button",
   mic:       "toggle_mic",
 };
-
-interface Action { id: string; label: string; description: string; }
 
 const STATIC_ACTIONS: Action[] = [
   { id: "recycle",   label: "Recycle Bin", description: "Empties the Windows Recycle Bin. A confirmation dialog will appear." },
@@ -33,20 +31,30 @@ const STATIC_ACTIONS: Action[] = [
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
 ];
 
-interface Toast { msg: string; ok: boolean; key: number; }
+// ─── Label-based router (Tauri window label) ──────────────────────────────────
 
-// ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
+  if (getCurrentWindow().label === "settings") return <SettingsView />;
+  return <MainView />;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MainView
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function MainView() {
   const [active, setActive]             = useState(false);
   const [pressed, setPressed]           = useState<string | null>(null);
   const [hovered, setHovered]           = useState<string | null>(null);
   const [toast, setToast]               = useState<Toast | null>(null);
   const [micMuted, setMicMuted]         = useState(false);
   const [showSnippets, setShowSnippets] = useState(false);
+  const [snippets, setSnippets]         = useState<Snippet[]>([]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     invoke<boolean>("get_mic_state").then(setMicMuted).catch(() => {});
+    invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
   }, []);
 
   const showToast = useCallback((msg: string, ok: boolean) => {
@@ -68,7 +76,7 @@ export default function App() {
       .catch((err: unknown) => showToast(String(err), false));
   }, [showToast]);
 
-  // JS-based drag: tracks pointer delta and moves window via Win32 in physical pixels
+  // JS-based drag
   const handleDragStart = useCallback(async (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return;
@@ -99,7 +107,7 @@ export default function App() {
     }, { once: true });
   }, []);
 
-  // Resize handle — uses Rust command (bypasses resizable:false config)
+  // Resize handle
   const handleResizeStart = useCallback(async (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -190,11 +198,20 @@ export default function App() {
             ))}
           </div>
 
-          {/* ── Snippets drawer (replaces info-bar when open) ── */}
+          {/* ── Snippets drawer ── */}
           {showSnippets ? (
             <div className="snippets-drawer">
-              <p className="snippets-eyebrow">Tap to copy</p>
-              {SNIPPET_LIST.map((s) => (
+              <div className="snippets-eyebrow-row">
+                <span className="snippets-eyebrow">Tap to copy</span>
+                <button
+                  className="snippets-settings-btn"
+                  title="Settings"
+                  onPointerUp={(e) => { e.stopPropagation(); invoke("open_settings"); }}
+                >
+                  ⚙
+                </button>
+              </div>
+              {snippets.map((s) => (
                 <button
                   key={s.id}
                   className="snippet-row"
@@ -224,11 +241,100 @@ export default function App() {
           <span className="status-copy">{actions.length} actions ready</span>
         </footer>
 
-        {/* ── Resize handle — absolute so it stays visible when panel shrinks ── */}
+        {/* ── Resize handle ── */}
         <div className="resize-handle" onPointerDown={handleResizeStart} title="Drag to resize">
           <ResizeCorner />
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SettingsView — ayrı pencerede açılır (index.html#settings)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SettingsView() {
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newText, setNewText]   = useState("");
+
+  useEffect(() => {
+    invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
+  }, []);
+
+  const persist = (updated: Snippet[]) => {
+    setSnippets(updated);
+    invoke("save_snippets", { snippets: updated }).catch(() => {});
+  };
+
+  const addSnippet = () => {
+    if (!newLabel.trim() || !newText.trim()) return;
+    const next: Snippet[] = [
+      ...snippets,
+      { id: Date.now().toString(), label: newLabel.trim(), text: newText.trim() },
+    ];
+    persist(next);
+    setNewLabel("");
+    setNewText("");
+  };
+
+  const deleteSnippet = (id: string) => persist(snippets.filter((s) => s.id !== id));
+
+  return (
+    <div className="settings-view">
+      <header className="settings-header">
+        <span className="settings-title">Snippets</span>
+        <button
+          className={`settings-edit-btn${editMode ? " is-active" : ""}`}
+          onClick={() => setEditMode((v) => !v)}
+        >
+          {editMode ? "✓ Done" : "✏ Edit"}
+        </button>
+      </header>
+
+      <div className="settings-list">
+        {snippets.length === 0 && (
+          <p className="settings-empty">No snippets yet. Add one below.</p>
+        )}
+        {snippets.map((s) => (
+          <div key={s.id} className="settings-row">
+            <span className="settings-row-label">{s.label}</span>
+            <span className="settings-row-text">{s.text}</span>
+            {editMode && (
+              <button
+                className="settings-delete-btn"
+                onClick={() => deleteSnippet(s.id)}
+                title="Delete"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="settings-add">
+        <p className="settings-add-title">Add snippet</p>
+        <input
+          className="settings-input"
+          placeholder="Label (e.g. Email)"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+        />
+        <input
+          className="settings-input"
+          placeholder="Text to copy"
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+        />
+        <button className="settings-add-btn" onClick={addSnippet}>
+          + Add
+        </button>
       </div>
     </div>
   );
@@ -250,7 +356,6 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
 
 function MicIcon({ muted }: { muted: boolean }) {
   const c = muted ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
-  // Compact viewBox — only the mic area, no extra whitespace
   return (
     <svg width="14" height="16" viewBox="4 1 16 22" fill="none" aria-hidden style={{ display: "block" }}>
       <rect x="9" y="2" width="6" height="12" rx="3" fill={c} />
@@ -274,7 +379,6 @@ function CopyIcon() {
 }
 
 function ResizeCorner() {
-  // Classic bottom-right resize grip: 3 diagonal parallel lines
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
       <line x1="10" y1="2"  x2="2"  y2="10"/>

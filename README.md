@@ -141,8 +141,8 @@ These are defined in the project specification and will be implemented in upcomi
 ### Development
 
 ```bash
-git clone https://github.com/Kayragun/DeskDeck.git
-cd DeskDeck
+git clone https://github.com/Kayragun/Desktop-Deck.git
+cd Desktop-Deck
 npm install
 npm run tauri dev
 ```
@@ -179,7 +179,7 @@ The project is structured to make each feature self-contained. Adding a new acti
 ## File Structure
 
 ```
-DeskDeck/
+Desktop Deck/
 ├── src/                        # React frontend
 │   ├── App.tsx                 # Main widget UI and action buttons
 │   └── styles/global.css       # Widget styles

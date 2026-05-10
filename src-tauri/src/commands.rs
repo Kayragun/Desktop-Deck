@@ -13,12 +13,40 @@ pub fn empty_recycle_bin() {
     unsafe { SHEmptyRecycleBinW(null_mut(), core::ptr::null(), 0); }
 }
 
+// ─── Desktop path helper ──────────────────────────────────────────────────────
+
+fn get_desktop_path() -> Result<String, String> {
+    use windows::{
+        core::GUID,
+        Win32::Foundation::HANDLE,
+        Win32::UI::Shell::{SHGetKnownFolderPath, KNOWN_FOLDER_FLAG},
+    };
+
+    // FOLDERID_Desktop = {B4BFCC3A-DB2C-424C-B029-7FE99A87C641}
+    const FOLDERID_DESKTOP: GUID = GUID {
+        data1: 0xB4BFCC3A,
+        data2: 0xDB2C,
+        data3: 0x424C,
+        data4: [0xB0, 0x29, 0x7F, 0xE9, 0x9A, 0x87, 0xC6, 0x41],
+    };
+
+    unsafe {
+        let pwstr = SHGetKnownFolderPath(
+            &FOLDERID_DESKTOP,
+            KNOWN_FOLDER_FLAG(0),
+            HANDLE::default(),
+        )
+        .map_err(|e| e.to_string())?;
+
+        pwstr.to_string().map_err(|e| e.to_string())
+    }
+}
+
 // ─── New Desktop Folder ───────────────────────────────────────────────────────
 
 #[tauri::command]
 pub fn new_desktop_folder() -> Result<(), String> {
-    let home = std::env::var("USERPROFILE").map_err(|e| e.to_string())?;
-    let desktop = format!("{}\\Desktop", home);
+    let desktop = get_desktop_path()?;
     let mut n = 1u32;
     loop {
         let path = if n == 1 {
@@ -50,12 +78,12 @@ extern "system" {
 }
 
 #[tauri::command]
-pub fn flush_ram() {
+pub fn flush_ram() -> Result<(), String> {
     unsafe {
         let mut pids = vec![0u32; 1024];
         let mut needed = 0u32;
         if EnumProcesses(pids.as_mut_ptr(), (pids.len() * 4) as u32, &mut needed) == 0 {
-            return;
+            return Err("EnumProcesses failed".into());
         }
         let count = needed as usize / 4;
         for &pid in pids[..count].iter() {
@@ -67,6 +95,7 @@ pub fn flush_ram() {
             }
         }
     }
+    Ok(())
 }
 
 // ─── Clipboard Clear ─────────────────────────────────────────────────────────
@@ -78,13 +107,15 @@ extern "system" {
 }
 
 #[tauri::command]
-pub fn clear_clipboard() {
+pub fn clear_clipboard() -> Result<(), String> {
     unsafe {
-        if OpenClipboard(null_mut()) != 0 {
-            EmptyClipboard();
-            CloseClipboard();
+        if OpenClipboard(null_mut()) == 0 {
+            return Err("Could not open clipboard".into());
         }
+        EmptyClipboard();
+        CloseClipboard();
     }
+    Ok(())
 }
 
 // ─── Display / Projection ────────────────────────────────────────────────────
@@ -133,7 +164,7 @@ pub fn panic_button() {
 // ─── Mic Off ─────────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn toggle_mic() -> Result<(), String> {
+pub fn toggle_mic() -> Result<String, String> {
     use windows::{
         core::GUID,
         Win32::Foundation::BOOL,
@@ -167,10 +198,15 @@ pub fn toggle_mic() -> Result<(), String> {
             .Activate(CLSCTX_INPROC_SERVER, None)
             .map_err(|e| e.to_string())?;
 
-        let muted: bool = vol.GetMute().map_err(|e| e.to_string())?.as_bool();
-        vol.SetMute(BOOL::from(!muted), core::ptr::null())
+        let currently_muted: bool = vol.GetMute().map_err(|e| e.to_string())?.as_bool();
+        let new_muted = !currently_muted;
+        vol.SetMute(BOOL::from(new_muted), core::ptr::null())
             .map_err(|e| e.to_string())?;
-    }
 
-    Ok(())
+        Ok(if new_muted {
+            "Microphone muted".into()
+        } else {
+            "Microphone unmuted".into()
+        })
+    }
 }

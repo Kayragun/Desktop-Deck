@@ -1,0 +1,9 @@
+{
+  "identifier": "default",
+  "description": "Desktop Deck default capabilities",
+  "platforms": ["linux", "macOS", "windows"],
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

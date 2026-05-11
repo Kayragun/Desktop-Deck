@@ -31,10 +31,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
 ];
 
-// ─── Label-based router (Tauri window label) ──────────────────────────────────
-
 export default function App() {
-  if (getCurrentWindow().label === "settings") return <SettingsView />;
   return <MainView />;
 }
 
@@ -49,7 +46,11 @@ function MainView() {
   const [toast, setToast]               = useState<Toast | null>(null);
   const [micMuted, setMicMuted]         = useState(false);
   const [showSnippets, setShowSnippets] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [snippets, setSnippets]         = useState<Snippet[]>([]);
+  const [newLabel, setNewLabel]         = useState("");
+  const [newText, setNewText]           = useState("");
+  const [editMode, setEditMode]         = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -63,8 +64,27 @@ function MainView() {
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
+  const persistSnippets = useCallback((updated: Snippet[]) => {
+    setSnippets(updated);
+    invoke("save_snippets", { snippets: updated }).catch(() => {});
+  }, []);
+
+  const addSnippet = useCallback(() => {
+    if (!newLabel.trim() || !newText.trim()) return;
+    persistSnippets([
+      ...snippets,
+      { id: Date.now().toString(), label: newLabel.trim(), text: newText.trim() },
+    ]);
+    setNewLabel("");
+    setNewText("");
+  }, [newLabel, newText, snippets, persistSnippets]);
+
+  const deleteSnippet = useCallback((id: string) => {
+    persistSnippets(snippets.filter((s) => s.id !== id));
+  }, [snippets, persistSnippets]);
+
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); return; }
     const cmd = COMMANDS[id];
     if (!cmd) { showToast("Coming soon", false); return; }
     invoke<string | null>(cmd)
@@ -199,18 +219,21 @@ function MainView() {
           </div>
 
           {/* ── Snippets drawer ── */}
-          {showSnippets ? (
+          {showSnippets && !showSettings && (
             <div className="snippets-drawer">
               <div className="snippets-eyebrow-row">
                 <span className="snippets-eyebrow">Tap to copy</span>
                 <button
                   className="snippets-settings-btn"
-                  title="Settings"
-                  onPointerUp={(e) => { e.stopPropagation(); invoke("open_settings"); }}
+                  title="Manage snippets"
+                  onPointerUp={(e) => { e.stopPropagation(); setShowSettings(true); }}
                 >
                   ⚙
                 </button>
               </div>
+              {snippets.length === 0 && (
+                <p className="snippet-empty">No snippets yet — click ⚙ to add one.</p>
+              )}
               {snippets.map((s) => (
                 <button
                   key={s.id}
@@ -227,7 +250,77 @@ function MainView() {
                 </button>
               ))}
             </div>
-          ) : (
+          )}
+
+          {/* ── Inline settings panel ── */}
+          {showSnippets && showSettings && (
+            <div className="snippets-drawer settings-panel">
+              <div className="snippets-eyebrow-row">
+                <button
+                  className="snippets-settings-btn"
+                  onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); setEditMode(false); }}
+                  title="Back"
+                >
+                  ← Back
+                </button>
+                <button
+                  className={`snippets-settings-btn${editMode ? " is-edit-active" : ""}`}
+                  onPointerUp={(e) => { e.stopPropagation(); setEditMode((v) => !v); }}
+                >
+                  {editMode ? "✓ Done" : "✏ Edit"}
+                </button>
+              </div>
+
+              {/* Existing snippets */}
+              <div className="settings-snippet-list">
+                {snippets.length === 0 && (
+                  <p className="snippet-empty">No snippets yet.</p>
+                )}
+                {snippets.map((s) => (
+                  <div key={s.id} className="settings-snippet-row">
+                    <span className="snippet-label">{s.label}</span>
+                    <span className="snippet-value">{s.text}</span>
+                    {editMode && (
+                      <button
+                        className="settings-delete-btn"
+                        onPointerUp={(e) => { e.stopPropagation(); deleteSnippet(s.id); }}
+                        title="Delete"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add new snippet */}
+              <div className="settings-add-row">
+                <input
+                  className="settings-input"
+                  placeholder="Label"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+                />
+                <input
+                  className="settings-input"
+                  placeholder="Text to copy"
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+                />
+                <button
+                  className="settings-add-btn"
+                  onPointerUp={(e) => { e.stopPropagation(); addSnippet(); }}
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Info bar (hover description) ── */}
+          {!showSnippets && (
             <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
               <span className="info-icon">ℹ</span>
               <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -246,95 +339,6 @@ function MainView() {
           <ResizeCorner />
         </div>
 
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SettingsView — ayrı pencerede açılır (index.html#settings)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function SettingsView() {
-  const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [editMode, setEditMode] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
-  const [newText, setNewText]   = useState("");
-
-  useEffect(() => {
-    invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
-  }, []);
-
-  const persist = (updated: Snippet[]) => {
-    setSnippets(updated);
-    invoke("save_snippets", { snippets: updated }).catch(() => {});
-  };
-
-  const addSnippet = () => {
-    if (!newLabel.trim() || !newText.trim()) return;
-    const next: Snippet[] = [
-      ...snippets,
-      { id: Date.now().toString(), label: newLabel.trim(), text: newText.trim() },
-    ];
-    persist(next);
-    setNewLabel("");
-    setNewText("");
-  };
-
-  const deleteSnippet = (id: string) => persist(snippets.filter((s) => s.id !== id));
-
-  return (
-    <div className="settings-view">
-      <header className="settings-header">
-        <span className="settings-title">Snippets</span>
-        <button
-          className={`settings-edit-btn${editMode ? " is-active" : ""}`}
-          onClick={() => setEditMode((v) => !v)}
-        >
-          {editMode ? "✓ Done" : "✏ Edit"}
-        </button>
-      </header>
-
-      <div className="settings-list">
-        {snippets.length === 0 && (
-          <p className="settings-empty">No snippets yet. Add one below.</p>
-        )}
-        {snippets.map((s) => (
-          <div key={s.id} className="settings-row">
-            <span className="settings-row-label">{s.label}</span>
-            <span className="settings-row-text">{s.text}</span>
-            {editMode && (
-              <button
-                className="settings-delete-btn"
-                onClick={() => deleteSnippet(s.id)}
-                title="Delete"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="settings-add">
-        <p className="settings-add-title">Add snippet</p>
-        <input
-          className="settings-input"
-          placeholder="Label (e.g. Email)"
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addSnippet()}
-        />
-        <input
-          className="settings-input"
-          placeholder="Text to copy"
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addSnippet()}
-        />
-        <button className="settings-add-btn" onClick={addSnippet}>
-          + Add
-        </button>
       </div>
     </div>
   );

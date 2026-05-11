@@ -171,23 +171,6 @@ unsafe fn attach_to_desktop(hwnd: *mut c_void) {
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
-#[tauri::command]
-fn open_settings(app: tauri::AppHandle) {
-    if let Some(win) = app.get_webview_window("settings") {
-        let _ = win.set_focus();
-        return;
-    }
-    let _ = tauri::WebviewWindowBuilder::new(
-        &app,
-        "settings",
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Desktop Deck — Snippets")
-    .inner_size(360.0, 500.0)
-    .resizable(false)
-    .decorations(true)
-    .build();
-}
 
 #[tauri::command]
 fn hide_window(window: tauri::WebviewWindow, state: tauri::State<HiddenState>) {
@@ -302,7 +285,6 @@ fn main() {
             commands::get_snippets,
             commands::save_snippets,
             hide_window,
-            open_settings,
         ])
         .run(tauri::generate_context!())
         .expect("Desktop Deck başlatılamadı");

@@ -202,7 +202,15 @@ html, body {
   position: relative;
   z-index: 1;
   padding: 13px 14px 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+.grid-section::-webkit-scrollbar { width: 3px; }
+.grid-section::-webkit-scrollbar-track { background: transparent; }
+.grid-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
 
 .section-eyebrow {
   font-family: system-ui, -apple-system, sans-serif;
@@ -217,8 +225,9 @@ html, body {
 /* ── Action Grid ────────────────────────────────────── */
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(46px, 68px));
   gap: 7px;
+  justify-content: center;
 }
 
 /* ── Action Button ──────────────────────────────────── */
@@ -230,6 +239,7 @@ html, body {
   gap: 4px;
   width: 100%;
   aspect-ratio: 1 / 1;
+  max-height: 68px;
   padding: 6px 4px;
 
   background: var(--surface);
@@ -531,7 +541,7 @@ html, body {
   align-items: center;
   gap: 7px;
   padding: 0 16px 14px;
-  margin-top: auto; /* push to bottom when panel is taller */
+  flex-shrink: 0;
 }
 
 .status-beacon {
@@ -581,6 +591,54 @@ html, body {
   color: var(--text-hi);
   background: rgba(124, 106, 247, 0.18);
   border-color: rgba(124, 106, 247, 0.35);
+}
+
+/* ── Inline settings panel ─────────────────────────────── */
+.settings-panel {
+  gap: 5px;
+}
+
+.settings-snippet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.settings-snippet-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+}
+
+.settings-snippet-row:hover { background: rgba(255, 255, 255, 0.06); }
+
+.settings-add-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.snippet-empty {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.snippets-settings-btn.is-edit-active {
+  color: rgba(61, 220, 143, 0.90);
+  border-color: rgba(61, 220, 143, 0.30);
+  background: rgba(61, 220, 143, 0.10);
 }
 
 /* ── Settings view (separate window) ───────────────────── */

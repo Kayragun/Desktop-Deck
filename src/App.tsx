@@ -98,6 +98,8 @@ function MainView() {
 
   // JS-based drag
   const handleDragStart = useCallback(async (e: React.PointerEvent) => {
+    if (!e.isPrimary) return;          // block secondary touch points (3-finger gesture)
+    if (e.pointerType !== "mouse") return; // block touch/stylus drag — gesture only
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();

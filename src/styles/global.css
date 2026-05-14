@@ -855,3 +855,69 @@ html, body {
   background: rgba(239, 68, 68, 0.26);
   color: rgba(255, 100, 100, 0.95);
 }
+
+/* ── Decision maker drawer ──────────────────────────── */
+.decision-drawer {
+  margin-top: 9px;
+  padding: 9px 8px 8px;
+  border-radius: 10px;
+  background: rgba(124, 106, 247, 0.07);
+  border: 1px solid rgba(124, 106, 247, 0.16);
+  animation: drawer-in 180ms var(--ease-snap) both;
+}
+
+.decision-eyebrow {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.70;
+  margin-bottom: 8px;
+}
+
+.decision-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.decision-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), transform var(--t);
+}
+
+.decision-choice:hover {
+  background: rgba(124, 106, 247, 0.14);
+  border-color: rgba(124, 106, 247, 0.30);
+  transform: translateY(-1px);
+}
+
+.decision-choice:active {
+  transform: scale(0.95);
+  transition-duration: 60ms;
+}
+
+.decision-choice-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
+}
+
+.decision-choice-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-mid);
+  letter-spacing: 0.01em;
+}

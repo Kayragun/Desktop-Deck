@@ -30,6 +30,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
+  { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin or roll a dice." },
 ];
 
 export default function App() {
@@ -52,8 +53,9 @@ function MainView() {
   const [newLabel, setNewLabel]           = useState("");
   const [newText, setNewText]             = useState("");
   const [editMode, setEditMode]           = useState(false);
-  const [cleanerActive, setCleanerActive] = useState(false);
-  const [cleanerSecs, setCleanerSecs]     = useState(60);
+  const [cleanerActive, setCleanerActive]   = useState(false);
+  const [cleanerSecs, setCleanerSecs]       = useState(60);
+  const [showDecision, setShowDecision]     = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -84,6 +86,14 @@ function MainView() {
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
+  const flipCoin = useCallback(() => {
+    showToast(`🪙 ${Math.random() < 0.5 ? "Heads!" : "Tails!"}`, true);
+  }, [showToast]);
+
+  const rollDice = useCallback(() => {
+    showToast(`🎲 ${Math.floor(Math.random() * 6) + 1}`, true);
+  }, [showToast]);
+
   const persistSnippets = useCallback((updated: Snippet[]) => {
     setSnippets(updated);
     invoke("save_snippets", { snippets: updated }).catch(() => {});
@@ -104,7 +114,8 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); return; }
+    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); return; }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -246,6 +257,7 @@ function MainView() {
                       pressed === a.id ? "is-pressed" : "",
                       a.id === "mic" && micMuted ? "is-muted" : "",
                       a.id === "snippets" && showSnippets ? "is-active" : "",
+                    a.id === "decision" && showDecision ? "is-active" : "",
                     ].filter(Boolean).join(" ")}
                     onPointerDown={() => setPressed(a.id)}
                     onPointerUp={() => { setPressed(null); runCommand(a.id); }}
@@ -362,8 +374,25 @@ function MainView() {
                 </div>
               )}
 
+              {/* ── Decision maker drawer ── */}
+              {showDecision && (
+                <div className="decision-drawer">
+                  <p className="decision-eyebrow">Decision Maker</p>
+                  <div className="decision-choices">
+                    <button className="decision-choice" onPointerUp={flipCoin}>
+                      <span className="decision-choice-icon">🪙</span>
+                      <span className="decision-choice-label">Coin Flip</span>
+                    </button>
+                    <button className="decision-choice" onPointerUp={rollDice}>
+                      <span className="decision-choice-icon">🎲</span>
+                      <span className="decision-choice-label">Roll Dice</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && (
+              {!showSnippets && !showDecision && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
                   <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -400,6 +429,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   ram:       "💾",
   snippets:  "✂️",
   cleaner:   "🧹",
+  decision:  "🎯",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

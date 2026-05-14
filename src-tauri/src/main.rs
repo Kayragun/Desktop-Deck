@@ -12,6 +12,7 @@ use tauri::{
 };
 
 mod autostart;
+mod cleaner;
 mod commands;
 mod config;
 
@@ -174,6 +175,7 @@ fn main() {
                 configure_dwm(&win);
 
                 if let Ok(hwnd_val) = win.hwnd() {
+                    cleaner::set_hwnd(hwnd_val.0 as usize);
                     unsafe { attach_to_desktop(hwnd_val.0); }
                 }
 
@@ -252,6 +254,9 @@ fn main() {
             commands::move_window,
             commands::get_snippets,
             commands::save_snippets,
+            cleaner::start_cleaner,
+            cleaner::stop_cleaner,
+            cleaner::get_cleaner_active,
             hide_window,
         ])
         .run(tauri::generate_context!())

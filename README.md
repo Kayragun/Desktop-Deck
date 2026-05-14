@@ -72,7 +72,7 @@ These are defined in the project specification and will be implemented in upcomi
 - Functional Recycle Bin, New Folder, Display, RAM Flush, Clipboard Cleaner, Panic Button, Mic/Camera Kill-Switch
 
 ### Phase 3 — Advanced Modules
-- **Keyboard & Touchpad Cleaner Mode** — disables keyboard input for physical cleaning; exit with `Ctrl + F12` or automatic 1-minute timeout; mouse remains functional
+- **Keyboard & Touchpad Cleaner Mode** — disables keyboard input for physical cleaning; click "Stop Cleaning" or wait 1 minute to exit; mouse remains functional
 - **Custom Action Shortcuts** — bind any website, Windows setting, or application to a button
 - **Text Snippets** — user-defined clipboard shortcuts for frequently typed text
 

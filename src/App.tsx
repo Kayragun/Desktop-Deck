@@ -29,6 +29,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "mic",       label: "Mic On",       description: "Microphone is active — click to mute." },
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
+  { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
 ];
 
 export default function App() {
@@ -40,23 +41,42 @@ export default function App() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function MainView() {
-  const [active, setActive]             = useState(false);
-  const [pressed, setPressed]           = useState<string | null>(null);
-  const [hovered, setHovered]           = useState<string | null>(null);
-  const [toast, setToast]               = useState<Toast | null>(null);
-  const [micMuted, setMicMuted]         = useState(false);
-  const [showSnippets, setShowSnippets] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [snippets, setSnippets]         = useState<Snippet[]>([]);
-  const [newLabel, setNewLabel]         = useState("");
-  const [newText, setNewText]           = useState("");
-  const [editMode, setEditMode]         = useState(false);
+  const [active, setActive]               = useState(false);
+  const [pressed, setPressed]             = useState<string | null>(null);
+  const [hovered, setHovered]             = useState<string | null>(null);
+  const [toast, setToast]                 = useState<Toast | null>(null);
+  const [micMuted, setMicMuted]           = useState(false);
+  const [showSnippets, setShowSnippets]   = useState(false);
+  const [showSettings, setShowSettings]   = useState(false);
+  const [snippets, setSnippets]           = useState<Snippet[]>([]);
+  const [newLabel, setNewLabel]           = useState("");
+  const [newText, setNewText]             = useState("");
+  const [editMode, setEditMode]           = useState(false);
+  const [cleanerActive, setCleanerActive] = useState(false);
+  const [cleanerSecs, setCleanerSecs]     = useState(60);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     invoke<boolean>("get_mic_state").then(setMicMuted).catch(() => {});
     invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
   }, []);
+
+  // Cleaner mode: countdown + polling for external deactivation (Ctrl+F12 / timeout)
+  useEffect(() => {
+    if (!cleanerActive) return;
+    setCleanerSecs(60);
+
+    const countdown = setInterval(() => {
+      setCleanerSecs((s) => (s > 1 ? s - 1 : 1));
+    }, 1000);
+
+    const poll = setInterval(async () => {
+      const still = await invoke<boolean>("get_cleaner_active").catch(() => false);
+      if (!still) setCleanerActive(false);
+    }, 500);
+
+    return () => { clearInterval(countdown); clearInterval(poll); };
+  }, [cleanerActive]);
 
   const showToast = useCallback((msg: string, ok: boolean) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -85,6 +105,10 @@ function MainView() {
 
   const runCommand = useCallback((id: string) => {
     if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); return; }
+    if (id === "cleaner") {
+      invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
+      return;
+    }
     const cmd = COMMANDS[id];
     if (!cmd) { showToast("Coming soon", false); return; }
     invoke<string | null>(cmd)
@@ -98,8 +122,8 @@ function MainView() {
 
   // JS-based drag
   const handleDragStart = useCallback(async (e: React.PointerEvent) => {
-    if (!e.isPrimary) return;          // block secondary touch points (3-finger gesture)
-    if (e.pointerType !== "mouse") return; // block touch/stylus drag — gesture only
+    if (!e.isPrimary) return;
+    if (e.pointerType !== "mouse") return;
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
@@ -193,140 +217,159 @@ function MainView() {
 
         {/* ── Grid ── */}
         <div className="grid-section">
-          <p className="section-eyebrow">Quick Actions</p>
-          <div className="action-grid">
-            {actions.map((a) => (
+
+          {/* ── Cleaner mode overlay ── */}
+          {cleanerActive ? (
+            <div className="cleaner-overlay">
+              <div className="cleaner-icon">🧹</div>
+              <p className="cleaner-title">Keyboard Locked</p>
+              <p className="cleaner-hint">Click the button below to stop</p>
+              <p className="cleaner-countdown">{cleanerSecs}s</p>
               <button
-                key={a.id}
-                className={[
-                  "action-btn",
-                  pressed === a.id ? "is-pressed" : "",
-                  a.id === "mic" && micMuted ? "is-muted" : "",
-                  a.id === "snippets" && showSnippets ? "is-active" : "",
-                ].filter(Boolean).join(" ")}
-                onPointerDown={() => setPressed(a.id)}
-                onPointerUp={() => { setPressed(null); runCommand(a.id); }}
-                onPointerLeave={() => setPressed(null)}
-                onMouseEnter={() => setHovered(a.id)}
-                onMouseLeave={() => setHovered(null)}
+                className="cleaner-stop-btn"
+                onPointerUp={() => {
+                  invoke("stop_cleaner").then(() => setCleanerActive(false)).catch(() => {});
+                }}
               >
-                <span className="btn-icon">
-                  {a.id === "mic"
-                    ? <MicIcon muted={micMuted} />
-                    : BTN_ICONS[a.id]}
-                </span>
-                <span className="btn-label">{a.label}</span>
+                Stop Cleaning
               </button>
-            ))}
-          </div>
-
-          {/* ── Snippets drawer ── */}
-          {showSnippets && !showSettings && (
-            <div className="snippets-drawer">
-              <div className="snippets-eyebrow-row">
-                <span className="snippets-eyebrow">Tap to copy</span>
-                <button
-                  className="snippets-settings-btn"
-                  title="Manage snippets"
-                  onPointerUp={(e) => { e.stopPropagation(); setShowSettings(true); }}
-                >
-                  ⚙
-                </button>
-              </div>
-              {snippets.length === 0 && (
-                <p className="snippet-empty">No snippets yet — click ⚙ to add one.</p>
-              )}
-              {snippets.map((s) => (
-                <button
-                  key={s.id}
-                  className="snippet-row"
-                  onPointerUp={() =>
-                    invoke("copy_to_clipboard", { text: s.text })
-                      .then(() => showToast(`Copied: ${s.label}`, true))
-                      .catch((e: unknown) => showToast(String(e), false))
-                  }
-                >
-                  <span className="snippet-label">{s.label}</span>
-                  <span className="snippet-value">{s.text}</span>
-                  <CopyIcon />
-                </button>
-              ))}
             </div>
-          )}
-
-          {/* ── Inline settings panel ── */}
-          {showSnippets && showSettings && (
-            <div className="snippets-drawer settings-panel">
-              <div className="snippets-eyebrow-row">
-                <button
-                  className="snippets-settings-btn"
-                  onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); setEditMode(false); }}
-                  title="Back"
-                >
-                  ← Back
-                </button>
-                <button
-                  className={`snippets-settings-btn${editMode ? " is-edit-active" : ""}`}
-                  onPointerUp={(e) => { e.stopPropagation(); setEditMode((v) => !v); }}
-                >
-                  {editMode ? "✓ Done" : "✏ Edit"}
-                </button>
-              </div>
-
-              {/* Existing snippets */}
-              <div className="settings-snippet-list">
-                {snippets.length === 0 && (
-                  <p className="snippet-empty">No snippets yet.</p>
-                )}
-                {snippets.map((s) => (
-                  <div key={s.id} className="settings-snippet-row">
-                    <span className="snippet-label">{s.label}</span>
-                    <span className="snippet-value">{s.text}</span>
-                    {editMode && (
-                      <button
-                        className="settings-delete-btn"
-                        onPointerUp={(e) => { e.stopPropagation(); deleteSnippet(s.id); }}
-                        title="Delete"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+          ) : (
+            <>
+              <p className="section-eyebrow">Quick Actions</p>
+              <div className="action-grid">
+                {actions.map((a) => (
+                  <button
+                    key={a.id}
+                    className={[
+                      "action-btn",
+                      pressed === a.id ? "is-pressed" : "",
+                      a.id === "mic" && micMuted ? "is-muted" : "",
+                      a.id === "snippets" && showSnippets ? "is-active" : "",
+                    ].filter(Boolean).join(" ")}
+                    onPointerDown={() => setPressed(a.id)}
+                    onPointerUp={() => { setPressed(null); runCommand(a.id); }}
+                    onPointerLeave={() => setPressed(null)}
+                    onMouseEnter={() => setHovered(a.id)}
+                    onMouseLeave={() => setHovered(null)}
+                  >
+                    <span className="btn-icon">
+                      {a.id === "mic"
+                        ? <MicIcon muted={micMuted} />
+                        : BTN_ICONS[a.id]}
+                    </span>
+                    <span className="btn-label">{a.label}</span>
+                  </button>
                 ))}
               </div>
 
-              {/* Add new snippet */}
-              <div className="settings-add-row">
-                <input
-                  className="settings-input"
-                  placeholder="Label"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSnippet()}
-                />
-                <input
-                  className="settings-input"
-                  placeholder="Text to copy"
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSnippet()}
-                />
-                <button
-                  className="settings-add-btn"
-                  onPointerUp={(e) => { e.stopPropagation(); addSnippet(); }}
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-          )}
+              {/* ── Snippets drawer ── */}
+              {showSnippets && !showSettings && (
+                <div className="snippets-drawer">
+                  <div className="snippets-eyebrow-row">
+                    <span className="snippets-eyebrow">Tap to copy</span>
+                    <button
+                      className="snippets-settings-btn"
+                      title="Manage snippets"
+                      onPointerUp={(e) => { e.stopPropagation(); setShowSettings(true); }}
+                    >
+                      ⚙
+                    </button>
+                  </div>
+                  {snippets.length === 0 && (
+                    <p className="snippet-empty">No snippets yet — click ⚙ to add one.</p>
+                  )}
+                  {snippets.map((s) => (
+                    <button
+                      key={s.id}
+                      className="snippet-row"
+                      onPointerUp={() =>
+                        invoke("copy_to_clipboard", { text: s.text })
+                          .then(() => showToast(`Copied: ${s.label}`, true))
+                          .catch((e: unknown) => showToast(String(e), false))
+                      }
+                    >
+                      <span className="snippet-label">{s.label}</span>
+                      <span className="snippet-value">{s.text}</span>
+                      <CopyIcon />
+                    </button>
+                  ))}
+                </div>
+              )}
 
-          {/* ── Info bar (hover description) ── */}
-          {!showSnippets && (
-            <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
-              <span className="info-icon">ℹ</span>
-              <span className="info-text">{hoveredAction?.description ?? ""}</span>
-            </div>
+              {/* ── Inline settings panel ── */}
+              {showSnippets && showSettings && (
+                <div className="snippets-drawer settings-panel">
+                  <div className="snippets-eyebrow-row">
+                    <button
+                      className="snippets-settings-btn"
+                      onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); setEditMode(false); }}
+                      title="Back"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      className={`snippets-settings-btn${editMode ? " is-edit-active" : ""}`}
+                      onPointerUp={(e) => { e.stopPropagation(); setEditMode((v) => !v); }}
+                    >
+                      {editMode ? "✓ Done" : "✏ Edit"}
+                    </button>
+                  </div>
+
+                  <div className="settings-snippet-list">
+                    {snippets.length === 0 && (
+                      <p className="snippet-empty">No snippets yet.</p>
+                    )}
+                    {snippets.map((s) => (
+                      <div key={s.id} className="settings-snippet-row">
+                        <span className="snippet-label">{s.label}</span>
+                        <span className="snippet-value">{s.text}</span>
+                        {editMode && (
+                          <button
+                            className="settings-delete-btn"
+                            onPointerUp={(e) => { e.stopPropagation(); deleteSnippet(s.id); }}
+                            title="Delete"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="settings-add-row">
+                    <input
+                      className="settings-input"
+                      placeholder="Label"
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+                    />
+                    <input
+                      className="settings-input"
+                      placeholder="Text to copy"
+                      value={newText}
+                      onChange={(e) => setNewText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addSnippet()}
+                    />
+                    <button
+                      className="settings-add-btn"
+                      onPointerUp={(e) => { e.stopPropagation(); addSnippet(); }}
+                    >
+                      + Add
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Info bar (hover description) ── */}
+              {!showSnippets && (
+                <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
+                  <span className="info-icon">ℹ</span>
+                  <span className="info-text">{hoveredAction?.description ?? ""}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -356,6 +399,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   panic:     "🔕",
   ram:       "💾",
   snippets:  "✂️",
+  cleaner:   "🧹",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

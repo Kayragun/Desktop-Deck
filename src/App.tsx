@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { DecisionDrawer } from "./DecisionDrawer";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -86,14 +87,6 @@ function MainView() {
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
-  const flipCoin = useCallback(() => {
-    showToast(`🪙 ${Math.random() < 0.5 ? "Heads!" : "Tails!"}`, true);
-  }, [showToast]);
-
-  const rollDice = useCallback(() => {
-    showToast(`🎲 ${Math.floor(Math.random() * 6) + 1}`, true);
-  }, [showToast]);
-
   const persistSnippets = useCallback((updated: Snippet[]) => {
     setSnippets(updated);
     invoke("save_snippets", { snippets: updated }).catch(() => {});
@@ -175,7 +168,7 @@ function MainView() {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const onMove = (ev: PointerEvent) => {
       const newW = Math.max(Math.round(280 * dpr), Math.round(initW + (ev.screenX - startX) * dpr));
-      const newH = Math.max(Math.round(400 * dpr), Math.round(initH + (ev.screenY - startY) * dpr));
+      const newH = Math.max(Math.round(520 * dpr), Math.round(initH + (ev.screenY - startY) * dpr));
       invoke("resize_window", { width: newW, height: newH }).catch(() => {});
     };
     document.addEventListener("pointermove", onMove);
@@ -375,21 +368,7 @@ function MainView() {
               )}
 
               {/* ── Decision maker drawer ── */}
-              {showDecision && (
-                <div className="decision-drawer">
-                  <p className="decision-eyebrow">Decision Maker</p>
-                  <div className="decision-choices">
-                    <button className="decision-choice" onPointerUp={flipCoin}>
-                      <span className="decision-choice-icon">🪙</span>
-                      <span className="decision-choice-label">Coin Flip</span>
-                    </button>
-                    <button className="decision-choice" onPointerUp={rollDice}>
-                      <span className="decision-choice-icon">🎲</span>
-                      <span className="decision-choice-label">Roll Dice</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              {showDecision && <DecisionDrawer showToast={showToast} />}
 
               {/* ── Info bar (hover description) ── */}
               {!showSnippets && !showDecision && (

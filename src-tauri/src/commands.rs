@@ -158,11 +158,18 @@ pub fn move_window(window: tauri::WebviewWindow, x: i32, y: i32) -> Result<(), S
 pub fn resize_window(window: tauri::WebviewWindow, width: u32, height: u32) -> Result<(), String> {
     extern "system" {
         fn SetWindowPos(h: *mut c_void, ins: *mut c_void, x: i32, y: i32, cx: i32, cy: i32, f: u32) -> i32;
+        fn GetDpiForWindow(hwnd: *mut c_void) -> u32;
     }
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let dpi = unsafe { GetDpiForWindow(hwnd.0) };
+    let scale = dpi as f64 / 96.0;
+    let min_w = (280.0 * scale).round() as u32;
+    let min_h = (520.0 * scale).round() as u32;
+    let w = width.max(min_w);
+    let h = height.max(min_h);
     unsafe {
         // SWP_NOMOVE=0x0002 | SWP_NOZORDER=0x0004 | SWP_NOACTIVATE=0x0010
-        SetWindowPos(hwnd.0, null_mut(), 0, 0, width as i32, height as i32, 0x0016);
+        SetWindowPos(hwnd.0, null_mut(), 0, 0, w as i32, h as i32, 0x0016);
     }
     Ok(())
 }

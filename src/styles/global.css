@@ -859,11 +859,18 @@ html, body {
 /* ── Decision maker drawer ──────────────────────────── */
 .decision-drawer {
   margin-top: 9px;
-  padding: 9px 8px 8px;
+  padding: 9px 8px 10px;
   border-radius: 10px;
   background: rgba(124, 106, 247, 0.07);
   border: 1px solid rgba(124, 106, 247, 0.16);
   animation: drawer-in 180ms var(--ease-snap) both;
+}
+
+.decision-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .decision-eyebrow {
@@ -874,9 +881,27 @@ html, body {
   text-transform: uppercase;
   color: var(--accent);
   opacity: 0.70;
-  margin-bottom: 8px;
 }
 
+.decision-back-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-mid);
+  font-size: 9px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 5px;
+  transition: color var(--t), background var(--t), border-color var(--t);
+}
+
+.decision-back-btn:hover {
+  color: var(--text-hi);
+  background: rgba(124, 106, 247, 0.18);
+  border-color: rgba(124, 106, 247, 0.35);
+}
+
+/* ── Choice menu ───────────────────────────────────── */
 .decision-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -891,33 +916,295 @@ html, body {
   gap: 5px;
   padding: 12px 8px;
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
   cursor: pointer;
   transition: background var(--t), border-color var(--t), transform var(--t);
 }
 
 .decision-choice:hover {
-  background: rgba(124, 106, 247, 0.14);
-  border-color: rgba(124, 106, 247, 0.30);
+  background: rgba(124,106,247,0.14);
+  border-color: rgba(124,106,247,0.30);
   transform: translateY(-1px);
 }
 
-.decision-choice:active {
-  transform: scale(0.95);
-  transition-duration: 60ms;
-}
+.decision-choice:active { transform: scale(0.95); transition-duration: 60ms; }
 
-.decision-choice-icon {
-  font-size: 22px;
-  line-height: 1;
-  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
-}
+.decision-choice--wide { grid-column: 1 / -1; }
+
+.decision-choice-icon { font-size: 22px; line-height: 1; }
 
 .decision-choice-label {
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 600;
   color: var(--text-mid);
+}
+
+/* ── Shared action button ─────────────────────────── */
+.decision-spin-btn {
+  padding: 6px 22px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  color: rgba(200,190,255,0.90);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t), transform var(--t);
+}
+
+.decision-spin-btn:hover:not(:disabled) {
+  background: rgba(124,106,247,0.30);
+  transform: translateY(-1px);
+}
+
+.decision-spin-btn:disabled { opacity: 0.50; cursor: default; }
+
+/* ── Shared result text ───────────────────────────── */
+.decision-result {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
   letter-spacing: 0.01em;
+  animation: result-in 220ms var(--ease-snap) both;
+}
+
+@keyframes result-in {
+  from { opacity: 0; transform: scale(0.85) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Coin ─────────────────────────────────────────── */
+.decision-coin-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+
+.coin-viewport {
+  perspective: 480px;
+  width: 76px;
+  height: 76px;
+}
+
+.coin {
+  width: 76px;
+  height: 76px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.coin-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Outer ring (coin edge) */
+  box-shadow:
+    0 0 0 4px #92400e,
+    0 0 0 5px #fbbf24,
+    0 6px 18px rgba(0,0,0,0.60),
+    inset 0 2px 4px rgba(255,255,255,0.30);
+}
+
+.coin-front {
+  background: radial-gradient(circle at 38% 32%, #fde68a, #f59e0b 55%, #b45309);
+}
+
+.coin-back {
+  background: radial-gradient(circle at 62% 32%, #fef3c7, #d97706 55%, #92400e);
+  transform: rotateY(180deg);
+}
+
+/* Inner rim */
+.coin-front::before,
+.coin-back::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.30);
+  pointer-events: none;
+}
+
+/* Glare highlight */
+.coin-front::after,
+.coin-back::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  width: 28px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.38);
+  transform: rotate(-30deg);
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.coin-symbol {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: rgba(92, 40, 5, 0.88);
+  text-shadow:
+    0 1px 0 rgba(255,255,255,0.40),
+    0 -1px 0 rgba(0,0,0,0.15);
+  position: relative;
+  z-index: 1;
+  user-select: none;
+}
+
+/* ── Dice ─────────────────────────────────────────── */
+.decision-dice-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 2px;
+}
+
+.dice-perspective {
+  perspective: 320px;
+}
+
+.dice-box {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ececf4, #d0d0df);
+  position: relative;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -2px 0 rgba(0,0,0,0.12),
+    0 0 0 1px rgba(0,0,0,0.18);
+}
+
+.dice-box.is-rolling {
+  animation: dice-tumble 0.26s ease-in-out infinite;
+}
+
+@keyframes dice-tumble {
+  0%   { transform: rotateZ(-8deg) rotateX(14deg) scale(1.02); }
+  33%  { transform: rotateZ( 6deg) rotateX(-9deg) scale(0.96); }
+  66%  { transform: rotateZ(-2deg) rotateX( 7deg) scale(1.04); }
+  100% { transform: rotateZ(-8deg) rotateX(14deg) scale(1.02); }
+}
+
+.dice-pip {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3b3670, #1a1640);
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.40), 0 1px 1px rgba(255,255,255,0.10);
+}
+
+.dice-idle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+
+/* ── Wheel ────────────────────────────────────────── */
+.decision-wheel-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.wheel-canvas-wrap {
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.50), 0 0 0 2px rgba(255,255,255,0.06);
+}
+
+.wheel-items {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 72px;
+  overflow-y: auto;
+}
+
+.wheel-items::-webkit-scrollbar { width: 3px; }
+.wheel-items::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+.wheel-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.03);
+}
+
+.wheel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wheel-item-name {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9.5px;
+  color: var(--text-hi);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wheel-remove-btn {
+  background: none;
+  border: none;
+  color: rgba(255,80,80,0.55);
+  font-size: 9px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color var(--t);
+}
+
+.wheel-remove-btn:hover { color: rgba(255,90,90,0.90); }
+
+.wheel-add-row {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+  align-items: center;
+}
+
+.wheel-add-row .settings-input {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.wheel-add-row .settings-add-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  flex-shrink: 0;
 }

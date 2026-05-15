@@ -15,6 +15,7 @@ mod autostart;
 mod cleaner;
 mod commands;
 mod config;
+mod desktop;
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -35,11 +36,6 @@ extern "system" {
         h_wnd: *mut c_void, h_wnd_insert_after: *mut c_void,
         x: i32, y: i32, cx: i32, cy: i32, u_flags: u32,
     ) -> i32;
-    fn FindWindowA(class_name: *const u8, window_name: *const u8) -> *mut c_void;
-    fn FindWindowExA(hwnd_parent: *mut c_void, hwnd_child_after: *mut c_void, class_name: *const u8, window_name: *const u8) -> *mut c_void;
-    fn SendMessageTimeoutA(hwnd: *mut c_void, msg: u32, wp: usize, lp: isize, flags: u32, timeout: u32, result: *mut usize) -> isize;
-    fn SetParent(h_wnd_child: *mut c_void, h_wnd_new_parent: *mut c_void) -> *mut c_void;
-    fn EnumWindows(proc: unsafe extern "system" fn(*mut c_void, isize) -> i32, param: isize) -> i32;
 }
 
 // ─── WINDOWPOS struct (for WM_WINDOWPOSCHANGING) ──────────────────────────────
@@ -119,31 +115,6 @@ fn configure_dwm(win: &tauri::WebviewWindow) {
     }
 }
 
-// ─── attach_to_desktop: embed window inside WorkerW (Rainmeter approach) ─────
-
-unsafe extern "system" fn find_worker_w(hwnd: *mut c_void, param: isize) -> i32 {
-    let slot = &mut *(param as *mut *mut c_void);
-    let def_view = FindWindowExA(hwnd, 0usize as _, b"SHELLDLL_DefView\0".as_ptr(), 0usize as _);
-    if !def_view.is_null() {
-        *slot = FindWindowExA(0usize as _, hwnd, b"WorkerW\0".as_ptr(), 0usize as _);
-        return 0;
-    }
-    1
-}
-
-unsafe fn attach_to_desktop(hwnd: *mut c_void) {
-    let progman = FindWindowA(b"Progman\0".as_ptr(), 0usize as _);
-    if progman.is_null() { return; }
-    let mut msg_result = 0usize;
-    SendMessageTimeoutA(progman, 0x052C, 0, 0, 0, 1000, &mut msg_result);
-    SendMessageTimeoutA(progman, 0x052C, 0xD, 0x01, 0, 1000, &mut msg_result);
-    let mut worker_w: *mut c_void = 0usize as _;
-    EnumWindows(find_worker_w, &mut worker_w as *mut *mut c_void as isize);
-    let parent = if !worker_w.is_null() { worker_w } else { progman };
-    SetParent(hwnd, parent);
-    let ex = GetWindowLongPtrA(hwnd, -20);
-    SetWindowLongPtrA(hwnd, -20, ex | 0x80);
-}
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
@@ -176,7 +147,7 @@ fn main() {
 
                 if let Ok(hwnd_val) = win.hwnd() {
                     cleaner::set_hwnd(hwnd_val.0 as usize);
-                    unsafe { attach_to_desktop(hwnd_val.0); }
+                    unsafe { desktop::attach_to_desktop(hwnd_val.0); }
                 }
 
                 if let Ok(hwnd_val) = win.hwnd() {
@@ -236,8 +207,15 @@ fn main() {
             autostart::register();
             Ok(())
         })
-        .on_window_event(|_window, event| match event {
-            tauri::WindowEvent::Moved(pos) => { config::update_position(pos.x, pos.y); }
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::Moved(pos) => {
+                if window.label() == "main" {
+                    config::update_position(pos.x, pos.y);
+                } else if window.label().starts_with("note-") {
+                    let id = window.label().trim_start_matches("note-").to_string();
+                    commands::save_note_position(id, pos.x, pos.y);
+                }
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
@@ -256,6 +234,14 @@ fn main() {
             commands::save_snippets,
             commands::get_notes,
             commands::save_notes,
+            commands::get_note,
+            commands::save_note_position,
+            commands::save_note_size,
+            commands::save_note_opacity,
+            commands::update_note_content,
+            commands::open_note_window,
+            commands::close_note_window,
+            commands::resize_note_window,
             cleaner::start_cleaner,
             cleaner::stop_cleaner,
             cleaner::get_cleaner_active,

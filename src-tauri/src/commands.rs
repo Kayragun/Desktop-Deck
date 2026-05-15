@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use core::ptr::null_mut;
+use tauri::Manager;
 
 // ─── Recycle Bin ──────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ pub fn save_snippets(snippets: Vec<crate::config::Snippet>) {
     crate::config::save_snippets(&snippets);
 }
 
-// ─── Notes ───────────────────────────────────────────────────────────────────
+// ─── Notes (drawer CRUD) ─────────────────────────────────────────────────────
 
 #[tauri::command]
 pub fn get_notes() -> Vec<crate::config::Note> {
@@ -147,6 +148,129 @@ pub fn get_notes() -> Vec<crate::config::Note> {
 #[tauri::command]
 pub fn save_notes(notes: Vec<crate::config::Note>) {
     crate::config::save_notes(&notes);
+}
+
+#[tauri::command]
+pub fn get_note(id: String) -> Option<crate::config::Note> {
+    crate::config::load_notes().into_iter().find(|n| n.id == id)
+}
+
+#[tauri::command]
+pub fn save_note_position(id: String, x: i32, y: i32) {
+    let mut notes = crate::config::load_notes();
+    if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
+        n.x = x;
+        n.y = y;
+    }
+    crate::config::save_notes(&notes);
+}
+
+#[tauri::command]
+pub fn save_note_size(id: String, w: u32, h: u32) {
+    let mut notes = crate::config::load_notes();
+    if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
+        n.w = w.max(150);
+        n.h = h.max(120);
+    }
+    crate::config::save_notes(&notes);
+}
+
+#[tauri::command]
+pub fn save_note_opacity(id: String, opacity: f64) {
+    let mut notes = crate::config::load_notes();
+    if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
+        n.opacity = opacity.clamp(0.05, 1.0);
+    }
+    crate::config::save_notes(&notes);
+}
+
+#[tauri::command]
+pub fn update_note_content(id: String, content: String) {
+    let mut notes = crate::config::load_notes();
+    if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
+        n.content = content;
+    }
+    crate::config::save_notes(&notes);
+}
+
+// ─── Note windows (desktop sticky notes) ────────────────────────────────────
+
+unsafe fn setup_note_hwnd(hwnd: *mut c_void) {
+    extern "system" {
+        fn GetWindowLongPtrA(hwnd: *mut c_void, index: i32) -> isize;
+        fn SetWindowLongPtrA(hwnd: *mut c_void, index: i32, new_long: isize) -> isize;
+    }
+    // WS_EX_TOOLWINDOW (0x80): exclude from taskbar and Alt-Tab
+    let ex = GetWindowLongPtrA(hwnd, -20);
+    SetWindowLongPtrA(hwnd, -20, ex | 0x80);
+}
+
+#[tauri::command]
+pub async fn open_note_window(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let notes = crate::config::load_notes();
+    let note = notes.iter().find(|n| n.id == id).cloned().ok_or("Note not found")?;
+    let label = format!("note-{}", id);
+
+    // If window already exists just show it
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = win.show();
+        return Ok(());
+    }
+
+    let win = tauri::WebviewWindowBuilder::new(
+        &app,
+        label,
+        tauri::WebviewUrl::App("note.html".into()),
+    )
+    .title("")
+    .decorations(false)
+    .transparent(true)
+    .resizable(true)
+    .shadow(false)
+    .skip_taskbar(true)
+    .always_on_top(false)
+    .inner_size(note.w as f64, note.h as f64)
+    .min_inner_size(200.0, 160.0)
+    .position(note.x as f64, note.y as f64)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    if let Ok(hwnd) = win.hwnd() {
+        unsafe { setup_note_hwnd(hwnd.0); }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn close_note_window(app: tauri::AppHandle, id: String) {
+    let label = format!("note-{}", id);
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = win.close();
+    }
+}
+
+
+// ─── Resize note window (note-specific minimums, physical pixels) ────────────
+
+#[tauri::command]
+pub fn resize_note_window(window: tauri::WebviewWindow, width: u32, height: u32) -> Result<(), String> {
+    extern "system" {
+        fn SetWindowPos(h: *mut c_void, ins: *mut c_void, x: i32, y: i32, cx: i32, cy: i32, f: u32) -> i32;
+        fn GetDpiForWindow(hwnd: *mut c_void) -> u32;
+    }
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let dpi = unsafe { GetDpiForWindow(hwnd.0) };
+    let scale = dpi as f64 / 96.0;
+    let min_w = (200.0 * scale).round() as u32;
+    let min_h = (160.0 * scale).round() as u32;
+    let w = width.max(min_w);
+    let h = height.max(min_h);
+    unsafe {
+        // SWP_NOMOVE=0x0002 | SWP_NOZORDER=0x0004 | SWP_NOACTIVATE=0x0010
+        SetWindowPos(hwnd.0, null_mut(), 0, 0, w as i32, h as i32, 0x0016);
+    }
+    Ok(())
 }
 
 // ─── Move window (JS-driven drag, physical pixels) ───────────────────────────

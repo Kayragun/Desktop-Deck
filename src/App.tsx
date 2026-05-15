@@ -60,6 +60,9 @@ function MainView() {
   const [cleanerSecs, setCleanerSecs]       = useState(60);
   const [showDecision, setShowDecision]     = useState(false);
   const [showSticky, setShowSticky]         = useState(false);
+  const [inactiveOpacity, setInactiveOpacity] = useState(() =>
+    Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
+  );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -192,7 +195,7 @@ function MainView() {
   return (
     <div
       className="overlay"
-      style={{ opacity: active ? 1 : 0.20 }}
+      style={{ opacity: active ? 1 : inactiveOpacity }}
       onMouseEnter={() => setActive(true)}
       onMouseLeave={() => { setActive(false); setPressed(null); setHovered(null); }}
     >
@@ -387,6 +390,26 @@ function MainView() {
               )}
             </>
           )}
+        </div>
+
+        {/* ── Opacity control ── */}
+        <div className="opacity-bar">
+          <span className="opacity-icon">◑</span>
+          <input
+            type="range"
+            className="opacity-slider"
+            min={0.25}
+            max={0.80}
+            step={0.05}
+            value={inactiveOpacity}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setInactiveOpacity(v);
+              localStorage.setItem("dd-opacity", String(v));
+            }}
+            title={`Pasif şeffaflık: ${Math.round(inactiveOpacity * 100)}%`}
+          />
+          <span className="opacity-val">{Math.round(inactiveOpacity * 100)}%</span>
         </div>
 
         {/* ── Status bar ── */}

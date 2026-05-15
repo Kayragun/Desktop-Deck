@@ -5,6 +5,9 @@ interface Note {
   id: string;
   content: string;
   color: string;
+  x: number;
+  y: number;
+  opacity: number;
 }
 
 interface Props {
@@ -26,6 +29,8 @@ export function StickyNotesDrawer({ showToast }: Props) {
   const [newColor, setNewColor]     = useState("yellow");
   const [editing, setEditing]       = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  // Session-only set: which notes have windows open on desktop
+  const [desktopNotes, setDesktopNotes] = useState<Set<string>>(new Set());
   const addRef  = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
 
@@ -48,15 +53,25 @@ export function StickyNotesDrawer({ showToast }: Props) {
 
   const addNote = () => {
     if (!newContent.trim()) return;
-    const note: Note = { id: Date.now().toString(), content: newContent.trim(), color: newColor };
+    const note: Note = {
+      id: Date.now().toString(),
+      content: newContent.trim(),
+      color: newColor,
+      x: 300, y: 200, opacity: 0.92,
+    };
     persist([note, ...notes]);
     setNewContent("");
     setNewColor("yellow");
     setAdding(false);
-    showToast("Note added", true);
+    showToast("Not eklendi", true);
   };
 
   const deleteNote = (id: string) => {
+    // Close desktop window if open
+    if (desktopNotes.has(id)) {
+      invoke("close_note_window", { id }).catch(() => {});
+      setDesktopNotes((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
     persist(notes.filter((n) => n.id !== id));
   };
 
@@ -77,12 +92,25 @@ export function StickyNotesDrawer({ showToast }: Props) {
     setEditing(null);
   };
 
+  const toggleDesktop = async (note: Note) => {
+    const isOpen = desktopNotes.has(note.id);
+    if (isOpen) {
+      await invoke("close_note_window", { id: note.id }).catch(() => {});
+      setDesktopNotes((prev) => { const s = new Set(prev); s.delete(note.id); return s; });
+    } else {
+      await invoke("open_note_window", { id: note.id }).catch((e: unknown) => {
+        showToast(String(e), false);
+      });
+      setDesktopNotes((prev) => new Set([...prev, note.id]));
+    }
+  };
+
   return (
     <div className="sticky-drawer">
       <div className="snippets-eyebrow-row">
         <span className="snippets-eyebrow">Sticky Notes</span>
         <button className="snippets-settings-btn" onPointerUp={(e) => { e.stopPropagation(); toggleAdd(); }}>
-          {adding ? "✕ Cancel" : "+ Add"}
+          {adding ? "✕ İptal" : "+ Ekle"}
         </button>
       </div>
 
@@ -91,7 +119,7 @@ export function StickyNotesDrawer({ showToast }: Props) {
           <textarea
             ref={addRef}
             className="sticky-textarea"
-            placeholder="Write a note… (Ctrl+Enter to save)"
+            placeholder="Not yaz… (Ctrl+Enter ile kaydet)"
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) addNote(); }}
@@ -109,14 +137,14 @@ export function StickyNotesDrawer({ showToast }: Props) {
               ))}
             </div>
             <button className="settings-add-btn" onPointerUp={(e) => { e.stopPropagation(); addNote(); }}>
-              Save
+              Kaydet
             </button>
           </div>
         </div>
       )}
 
       {notes.length === 0 && !adding && (
-        <p className="snippet-empty">No notes yet — click + Add.</p>
+        <p className="snippet-empty">Henüz not yok — + Ekle'ye bas.</p>
       )}
 
       <div className="sticky-list">
@@ -140,20 +168,30 @@ export function StickyNotesDrawer({ showToast }: Props) {
                   rows={3}
                 />
                 <div className="sticky-edit-footer">
-                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>✓ Save</button>
+                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>✓ Kaydet</button>
                   <button className="sticky-edit-cancel" onPointerUp={(e) => { e.stopPropagation(); setEditing(null); }}>✕</button>
                 </div>
               </>
             ) : (
               <>
                 <p className="sticky-content" onPointerUp={() => startEdit(note)}>{note.content}</p>
-                <button
-                  className="sticky-delete-btn"
-                  title="Delete note"
-                  onPointerUp={(e) => { e.stopPropagation(); deleteNote(note.id); }}
-                >
-                  ✕
-                </button>
+                <div className="sticky-card-actions">
+                  {/* Pin to Desktop button */}
+                  <button
+                    className={`sticky-pin-btn${desktopNotes.has(note.id) ? " is-pinned" : ""}`}
+                    title={desktopNotes.has(note.id) ? "Masaüstünden kaldır" : "Masaüstüne ekle"}
+                    onPointerUp={(e) => { e.stopPropagation(); toggleDesktop(note); }}
+                  >
+                    {desktopNotes.has(note.id) ? "📌" : "📍"}
+                  </button>
+                  <button
+                    className="sticky-delete-btn"
+                    title="Notu sil"
+                    onPointerUp={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                  >
+                    ✕
+                  </button>
+                </div>
               </>
             )}
           </div>

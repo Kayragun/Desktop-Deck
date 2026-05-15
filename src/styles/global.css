@@ -1055,16 +1055,19 @@ html, body {
 }
 
 .coin-symbol {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 26px;
-  font-weight: 900;
-  color: rgba(92, 40, 5, 0.88);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 700;
+  font-style: italic;
+  color: rgba(78, 33, 3, 0.92);
   text-shadow:
-    0 1px 0 rgba(255,255,255,0.40),
-    0 -1px 0 rgba(0,0,0,0.15);
+    0 1px 0 rgba(255,255,255,0.50),
+    0 -1px 0 rgba(0,0,0,0.20),
+    0 0 8px rgba(255,255,255,0.20);
   position: relative;
   z-index: 1;
   user-select: none;
+  letter-spacing: -0.02em;
 }
 
 /* ── Dice ─────────────────────────────────────────── */
@@ -1208,3 +1211,142 @@ html, body {
   font-size: 12px;
   flex-shrink: 0;
 }
+
+/* ── Sticky Notes ─────────────────────────────────────────────────────────── */
+
+.sticky-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.sticky-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sticky-list::-webkit-scrollbar { width: 3px; }
+.sticky-list::-webkit-scrollbar-track { background: transparent; }
+.sticky-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.sticky-card {
+  position: relative;
+  background: rgba(255,255,255,0.055);
+  border-radius: 6px;
+  border-left: 3px solid #fbbf24;
+  padding: 7px 26px 7px 9px;
+  min-height: 32px;
+  transition: background var(--t);
+}
+
+.sticky-card:hover { background: rgba(255,255,255,0.085); }
+
+.sticky-content {
+  font-size: 11px;
+  color: rgba(255,255,255,0.78);
+  line-height: 1.55;
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.sticky-content:hover { color: rgba(255,255,255,0.95); }
+
+.sticky-delete-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.20);
+  font-size: 9px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 3px;
+  transition: color var(--t);
+}
+
+.sticky-delete-btn:hover { color: rgba(255,100,100,0.80); }
+
+.sticky-add-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sticky-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 7px 8px;
+  resize: none;
+  box-sizing: border-box;
+  outline: none;
+  line-height: 1.55;
+  transition: border-color var(--t);
+}
+
+.sticky-textarea:focus { border-color: rgba(124,106,247,0.50); }
+
+.sticky-add-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sticky-colors {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.sticky-color-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+
+.sticky-color-dot.is-selected {
+  border-color: rgba(255,255,255,0.75);
+  transform: scale(1.25);
+}
+
+.sticky-edit-footer {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.sticky-edit-save,
+.sticky-edit-cancel {
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.72);
+  cursor: pointer;
+  transition: background var(--t);
+}
+
+.sticky-edit-save:hover  { background: rgba(124,106,247,0.28); border-color: rgba(124,106,247,0.40); }
+.sticky-edit-cancel:hover { background: rgba(255,255,255,0.12); }

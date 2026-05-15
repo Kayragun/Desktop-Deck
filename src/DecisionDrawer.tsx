@@ -284,10 +284,10 @@ export function DecisionDrawer({ showToast }: Props) {
           <div className="coin-viewport">
             <div className="coin" style={{ transform: `rotateY(${coinRotation}deg)` }}>
               <div className="coin-face coin-front">
-                <span className="coin-symbol">♛</span>
+                <span className="coin-symbol">H</span>
               </div>
               <div className="coin-face coin-back">
-                <span className="coin-symbol">★</span>
+                <span className="coin-symbol">T</span>
               </div>
             </div>
           </div>

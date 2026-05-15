@@ -38,6 +38,34 @@ pub fn save_snippets(snippets: &[Snippet]) {
     if let Ok(json) = serde_json::to_string(snippets) { let _ = fs::write(path, json); }
 }
 
+// ─── Notes ───────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Note {
+    pub id: String,
+    pub content: String,
+    pub color: String,
+}
+
+fn notes_path() -> PathBuf {
+    let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
+    PathBuf::from(appdata).join("Desktop Deck").join("notes.json")
+}
+
+pub fn load_notes() -> Vec<Note> {
+    let path = notes_path();
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<Note>>(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_notes(notes: &[Note]) {
+    let path = notes_path();
+    if let Some(p) = path.parent() { let _ = fs::create_dir_all(p); }
+    if let Ok(json) = serde_json::to_string(notes) { let _ = fs::write(path, json); }
+}
+
 static LAST_X: AtomicI32 = AtomicI32::new(50);
 static LAST_Y: AtomicI32 = AtomicI32::new(100);
 

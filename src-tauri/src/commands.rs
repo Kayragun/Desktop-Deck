@@ -137,6 +137,18 @@ pub fn save_snippets(snippets: Vec<crate::config::Snippet>) {
     crate::config::save_snippets(&snippets);
 }
 
+// ─── Notes ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_notes() -> Vec<crate::config::Note> {
+    crate::config::load_notes()
+}
+
+#[tauri::command]
+pub fn save_notes(notes: Vec<crate::config::Note>) {
+    crate::config::save_notes(&notes);
+}
+
 // ─── Move window (JS-driven drag, physical pixels) ───────────────────────────
 
 #[tauri::command]

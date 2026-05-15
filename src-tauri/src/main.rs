@@ -254,6 +254,8 @@ fn main() {
             commands::move_window,
             commands::get_snippets,
             commands::save_snippets,
+            commands::get_notes,
+            commands::save_notes,
             cleaner::start_cleaner,
             cleaner::stop_cleaner,
             cleaner::get_cleaner_active,

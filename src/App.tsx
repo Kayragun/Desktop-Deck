@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { DecisionDrawer } from "./DecisionDrawer";
+import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -32,6 +33,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
   { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin or roll a dice." },
+  { id: "sticky",    label: "Sticky Notes", description: "Quick notes pinned to your desktop." },
 ];
 
 export default function App() {
@@ -57,6 +59,7 @@ function MainView() {
   const [cleanerActive, setCleanerActive]   = useState(false);
   const [cleanerSecs, setCleanerSecs]       = useState(60);
   const [showDecision, setShowDecision]     = useState(false);
+  const [showSticky, setShowSticky]         = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -107,8 +110,9 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); return; }
-    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); setShowSticky(false); return; }
+    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); setShowSticky(false); return; }
+    if (id === "sticky")   { setShowSticky((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); return; }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -251,6 +255,7 @@ function MainView() {
                       a.id === "mic" && micMuted ? "is-muted" : "",
                       a.id === "snippets" && showSnippets ? "is-active" : "",
                     a.id === "decision" && showDecision ? "is-active" : "",
+                    a.id === "sticky"   && showSticky   ? "is-active" : "",
                     ].filter(Boolean).join(" ")}
                     onPointerDown={() => setPressed(a.id)}
                     onPointerUp={() => { setPressed(null); runCommand(a.id); }}
@@ -370,8 +375,11 @@ function MainView() {
               {/* ── Decision maker drawer ── */}
               {showDecision && <DecisionDrawer showToast={showToast} />}
 
+              {/* ── Sticky Notes drawer ── */}
+              {showSticky && <StickyNotesDrawer showToast={showToast} />}
+
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && !showDecision && (
+              {!showSnippets && !showDecision && !showSticky && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
                   <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -409,6 +417,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   snippets:  "✂️",
   cleaner:   "🧹",
   decision:  "🎯",
+  sticky:    "📝",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

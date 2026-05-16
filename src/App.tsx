@@ -34,8 +34,8 @@ const STATIC_ACTIONS: Action[] = [
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
-  { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin or roll a dice." },
-  { id: "sticky",    label: "Sticky Notes", description: "Quick notes pinned to your desktop." },
+  { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin, roll a dice, or spin the wheel." },
+  { id: "sticky",    label: "Sticky Notes", description: "Floating notes on your desktop. Drag, resize, adjust opacity and font size per note." },
   { id: "dropzone",  label: "Drop Zone",    description: "Drag files here to stage them temporarily. Open, copy path, or reveal in Explorer." },
   { id: "converter", label: "Converter",    description: "Convert images between PNG, JPG, WEBP and BMP formats. Drop images, pick output folder." },
 ];
@@ -430,7 +430,7 @@ function MainView() {
               setInactiveOpacity(v);
               localStorage.setItem("dd-opacity", String(v));
             }}
-            title={`Pasif şeffaflık: ${Math.round(inactiveOpacity * 100)}%`}
+            title={`Idle opacity: ${Math.round(inactiveOpacity * 100)}%`}
           />
           <span className="opacity-val">{Math.round(inactiveOpacity * 100)}%</span>
         </div>

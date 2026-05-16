@@ -119,7 +119,7 @@ export function StickyNotesDrawer({ showToast }: Props) {
           <textarea
             ref={addRef}
             className="sticky-textarea"
-            placeholder="Not yaz… (Ctrl+Enter ile kaydet)"
+            placeholder="Write a note… (Ctrl+Enter to save)"
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) addNote(); }}
@@ -137,14 +137,14 @@ export function StickyNotesDrawer({ showToast }: Props) {
               ))}
             </div>
             <button className="settings-add-btn" onPointerUp={(e) => { e.stopPropagation(); addNote(); }}>
-              Kaydet
+              Save
             </button>
           </div>
         </div>
       )}
 
       {notes.length === 0 && !adding && (
-        <p className="snippet-empty">Henüz not yok — + Ekle'ye bas.</p>
+        <p className="snippet-empty">No notes yet — press + Add.</p>
       )}
 
       <div className="sticky-list">
@@ -168,7 +168,7 @@ export function StickyNotesDrawer({ showToast }: Props) {
                   rows={3}
                 />
                 <div className="sticky-edit-footer">
-                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>✓ Kaydet</button>
+                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>✓ Save</button>
                   <button className="sticky-edit-cancel" onPointerUp={(e) => { e.stopPropagation(); setEditing(null); }}>✕</button>
                 </div>
               </>

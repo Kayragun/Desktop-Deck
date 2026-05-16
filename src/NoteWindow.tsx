@@ -32,6 +32,7 @@ export function NoteWindow() {
   const [fontSize, setFontSize]       = useState(11.5);
   const [editing, setEditing]         = useState(false);
   const [editContent, setEditContent] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
   const opacityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fontTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,8 +184,8 @@ export function NoteWindow() {
               }}
             />
             <div className="nw-edit-row">
-              <button className="nw-save-btn" onPointerUp={(e) => { e.stopPropagation(); handleSaveEdit(); }}>✓ Kaydet</button>
-              <button className="nw-cancel-btn" onPointerUp={(e) => { e.stopPropagation(); setEditing(false); }}>İptal</button>
+              <button className="nw-save-btn" onPointerUp={(e) => { e.stopPropagation(); handleSaveEdit(); }}>✓ Save</button>
+              <button className="nw-cancel-btn" onPointerUp={(e) => { e.stopPropagation(); setEditing(false); }}>Cancel</button>
             </div>
           </>
         ) : (
@@ -192,36 +193,59 @@ export function NoteWindow() {
             className="nw-content"
             style={{ fontSize: `${fontSize}px` }}
             onDoubleClick={() => { setEditContent(note.content); setEditing(true); }}
-            title="Düzenlemek için çift tıkla"
+            title="Double-click to edit"
           >
             {note.content}
           </p>
         )}
       </div>
 
-      {/* Footer: font size + opacity */}
-      <div className="nw-footer">
-        <div className="nw-font-controls">
-          <button className="nw-font-btn" onPointerUp={() => handleFontSize(-0.5)} title="Yazıyı küçült">A−</button>
-          <span className="nw-font-val">{fontSize % 1 === 0 ? fontSize : fontSize.toFixed(1)}</span>
-          <button className="nw-font-btn" onPointerUp={() => handleFontSize(+0.5)} title="Yazıyı büyüt">A+</button>
+      {/* Settings panel — kalem butonuyla açılır */}
+      {showSettings && (
+        <div className="nw-settings-panel">
+          <div className="nw-settings-row">
+            <span className="nw-settings-label">Aa</span>
+            <button className="nw-font-btn" onPointerUp={() => handleFontSize(-0.5)}>−</button>
+            <span className="nw-font-val">{fontSize % 1 === 0 ? fontSize : fontSize.toFixed(1)}</span>
+            <button className="nw-font-btn" onPointerUp={() => handleFontSize(+0.5)}>+</button>
+            <div className="nw-settings-spacer" />
+            <button
+              className="nw-settings-done"
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); }}
+            >✓</button>
+          </div>
+          <div className="nw-settings-row">
+            <span className="nw-settings-label">◑</span>
+            <input
+              type="range"
+              className="nw-opacity-slider"
+              min={0.25}
+              max={1.0}
+              step={0.05}
+              value={opacity}
+              onChange={(e) => handleOpacity(parseFloat(e.target.value))}
+              title={`Opacity: ${Math.round(opacity * 100)}%`}
+            />
+            <span className="nw-opacity-val">{Math.round(opacity * 100)}%</span>
+          </div>
         </div>
-        <span className="nw-opacity-icon">◑</span>
-        <input
-          type="range"
-          className="nw-opacity-slider"
-          min={0.25}
-          max={1.0}
-          step={0.05}
-          value={opacity}
-          onChange={(e) => handleOpacity(parseFloat(e.target.value))}
-          title={`Şeffaflık: ${Math.round(opacity * 100)}%`}
-        />
-        <span className="nw-opacity-val">{Math.round(opacity * 100)}%</span>
+      )}
+
+      {/* Footer — sadece kalem butonu */}
+      <div className="nw-footer">
+        <button
+          className={`nw-pencil-btn${showSettings ? " is-open" : ""}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => { e.stopPropagation(); setShowSettings(v => !v); }}
+          title="Appearance settings"
+        >
+          ✎
+        </button>
       </div>
 
       {/* Resize handle */}
-      <div className="nw-resize-handle" onPointerDown={handleResizeStart} title="Boyutlandır">
+      <div className="nw-resize-handle" onPointerDown={handleResizeStart} title="Resize">
         <NwResizeCorner />
       </div>
     </div>

@@ -1930,24 +1930,125 @@ html, body {
 .nw-save-btn:hover   { background: rgba(124,106,247,0.30); }
 .nw-cancel-btn:hover { background: rgba(255,255,255,0.12); }
 
+/* ── Footer (sadece kalem butonu) ───────────────────────────────────────── */
+
 .nw-footer {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 34px 6px 8px;
+  padding: 3px 8px 4px;
   border-top: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
 }
 
-.nw-opacity-icon {
+.nw-pencil-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 7px 1px;
+  transition: color var(--t), background var(--t), border-color var(--t);
+}
+
+.nw-pencil-btn:hover,
+.nw-pencil-btn.is-open {
+  color: rgba(255, 255, 255, 0.80);
+  background: rgba(124, 106, 247, 0.14);
+  border-color: rgba(124, 106, 247, 0.35);
+}
+
+/* ── Settings panel ──────────────────────────────────────────────────────── */
+
+.nw-settings-panel {
+  flex-shrink: 0;
+  padding: 7px 10px 6px 10px;
+  background: rgba(0, 0, 0, 0.20);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: settings-in 150ms var(--ease-snap) both;
+}
+
+@keyframes settings-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.nw-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nw-settings-label {
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 9px;
-  color: rgba(255,255,255,0.30);
+  color: rgba(255, 255, 255, 0.35);
+  min-width: 16px;
   flex-shrink: 0;
 }
 
+.nw-settings-spacer { flex: 1; }
+
+.nw-settings-done {
+  background: rgba(124, 106, 247, 0.18);
+  border: 1px solid rgba(124, 106, 247, 0.32);
+  border-radius: 4px;
+  color: rgba(200, 190, 255, 0.88);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 9px 1px;
+  flex-shrink: 0;
+  transition: background var(--t), color var(--t);
+}
+
+.nw-settings-done:hover {
+  background: rgba(124, 106, 247, 0.30);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* ── Font size buttons (settings panel içinde) ───────────────────────────── */
+
+.nw-font-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  padding: 1px 6px;
+  line-height: 1.4;
+  transition: color var(--t), background var(--t), border-color var(--t);
+}
+
+.nw-font-btn:hover {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.nw-font-val {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.60);
+  min-width: 22px;
+  text-align: center;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ── Opacity slider (settings panel içinde) ─────────────────────────────── */
+
 .nw-opacity-val {
   font-size: 8px;
-  color: rgba(255,255,255,0.30);
+  color: rgba(255,255,255,0.45);
   min-width: 24px;
   text-align: right;
   flex-shrink: 0;
@@ -1975,45 +2076,6 @@ html, body {
 }
 
 .nw-opacity-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
-
-/* ── Font size controls ─────────────────────────────────────────────────── */
-
-.nw-font-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.nw-font-btn {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 3px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 8.5px;
-  font-weight: 700;
-  font-family: system-ui, -apple-system, sans-serif;
-  cursor: pointer;
-  padding: 1px 5px;
-  line-height: 1.3;
-  transition: color var(--t), background var(--t), border-color var(--t);
-}
-
-.nw-font-btn:hover {
-  color: rgba(255, 255, 255, 0.90);
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.32);
-}
-
-.nw-font-val {
-  font-size: 8px;
-  color: rgba(255, 255, 255, 0.52);
-  min-width: 20px;
-  text-align: center;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-weight: 600;
-  flex-shrink: 0;
-}
 
 .nw-resize-handle {
   position: absolute;

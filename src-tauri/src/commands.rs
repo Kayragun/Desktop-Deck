@@ -126,6 +126,18 @@ pub fn copy_to_clipboard(text: String) -> Result<(), String> {
     Ok(())
 }
 
+// ─── Shortcuts ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_shortcuts() -> Vec<crate::config::Shortcut> {
+    crate::config::load_shortcuts()
+}
+
+#[tauri::command]
+pub fn save_shortcuts(shortcuts: Vec<crate::config::Shortcut>) {
+    crate::config::save_shortcuts(&shortcuts);
+}
+
 // ─── Snippets ─────────────────────────────────────────────────────────────────
 
 #[tauri::command]

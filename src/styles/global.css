@@ -305,6 +305,8 @@ html, body {
   align-items: center;
   justify-content: center;
   transition: transform var(--t) var(--ease-snap);
+  pointer-events: none;
+  cursor: pointer;
 }
 
 .action-btn:hover .btn-icon { transform: scale(1.10); }
@@ -323,6 +325,8 @@ html, body {
   position: relative;
   z-index: 1;
   transition: color var(--t);
+  pointer-events: none;
+  cursor: pointer;
 }
 
 .action-btn:hover .btn-label { color: rgba(255, 255, 255, 0.68); }
@@ -2092,3 +2096,74 @@ html, body {
   z-index: 10;
 }
 .nw-resize-handle:hover { color: rgba(255,255,255,0.50); }
+
+/* ── Shortcuts drawer ───────────────────────────────── */
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.sc-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 4px 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), transform var(--t);
+}
+
+.sc-btn:hover {
+  background: rgba(124, 106, 247, 0.14);
+  border-color: rgba(124, 106, 247, 0.30);
+  transform: translateY(-1px);
+}
+
+.sc-btn:active { transform: scale(0.93); transition-duration: 55ms; }
+
+.sc-icon {
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35));
+  pointer-events: none;
+}
+
+.sc-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--text-mid);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  pointer-events: none;
+  cursor: pointer;
+}
+
+.sc-btn:hover .sc-label { color: rgba(255,255,255,0.68); }
+
+.sc-target {
+  font-size: 7.5px;
+  max-width: 110px;
+}
+
+.sc-add-top-row {
+  display: flex;
+  gap: 4px;
+}
+
+.sc-icon-input {
+  width: 36px !important;
+  min-width: 36px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 7px 4px !important;
+}

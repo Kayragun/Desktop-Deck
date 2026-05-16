@@ -5,6 +5,35 @@ use std::{
     sync::atomic::{AtomicI32, Ordering},
 };
 
+// ─── Shortcut ────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Shortcut {
+    pub id: String,
+    pub label: String,
+    pub target: String,
+    pub icon: String,
+}
+
+fn shortcuts_path() -> PathBuf {
+    let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
+    PathBuf::from(appdata).join("Desktop Deck").join("shortcuts.json")
+}
+
+pub fn load_shortcuts() -> Vec<Shortcut> {
+    let path = shortcuts_path();
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<Shortcut>>(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_shortcuts(shortcuts: &[Shortcut]) {
+    let path = shortcuts_path();
+    if let Some(p) = path.parent() { let _ = fs::create_dir_all(p); }
+    if let Ok(json) = serde_json::to_string(shortcuts) { let _ = fs::write(path, json); }
+}
+
 // ─── Snippet ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]

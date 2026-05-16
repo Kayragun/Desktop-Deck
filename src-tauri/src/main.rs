@@ -230,6 +230,8 @@ fn main() {
             commands::get_mic_state,
             commands::resize_window,
             commands::move_window,
+            commands::get_shortcuts,
+            commands::save_shortcuts,
             commands::get_snippets,
             commands::save_snippets,
             commands::get_notes,

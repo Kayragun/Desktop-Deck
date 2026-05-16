@@ -3,6 +3,7 @@ import { DecisionDrawer } from "./DecisionDrawer";
 import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
 import { FileConverterDrawer } from "./FileConverterDrawer";
+import { ShortcutsDrawer, Shortcut } from "./ShortcutsDrawer";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -38,6 +39,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "sticky",    label: "Sticky Notes", description: "Floating notes on your desktop. Drag, resize, adjust opacity and font size per note." },
   { id: "dropzone",  label: "Drop Zone",    description: "Drag files here to stage them temporarily. Open, copy path, or reveal in Explorer." },
   { id: "converter", label: "Converter",    description: "Convert images between PNG, JPG, WEBP and BMP formats. Drop images, pick output folder." },
+  { id: "shortcuts", label: "Shortcuts",    description: "Launch websites, apps, or Windows settings with one click. Click ⚙ to manage your shortcuts." },
 ];
 
 export default function App() {
@@ -67,6 +69,8 @@ function MainView() {
   const [showDropZone, setShowDropZone]     = useState(false);
   const [dropZoneFiles, setDropZoneFiles]   = useState<DroppedFile[]>([]);
   const [showConverter, setShowConverter]   = useState(false);
+  const [showShortcuts, setShowShortcuts]   = useState(false);
+  const [shortcuts, setShortcuts]           = useState<Shortcut[]>([]);
   const [inactiveOpacity, setInactiveOpacity] = useState(() =>
     Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
   );
@@ -75,6 +79,7 @@ function MainView() {
   useEffect(() => {
     invoke<boolean>("get_mic_state").then(setMicMuted).catch(() => {});
     invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
+    invoke<Shortcut[]>("get_shortcuts").then(setShortcuts).catch(() => {});
   }, []);
 
   // Cleaner mode: countdown + polling for external deactivation (Ctrl+F12 / timeout)
@@ -100,6 +105,11 @@ function MainView() {
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
+  const persistShortcuts = useCallback((updated: Shortcut[]) => {
+    setShortcuts(updated);
+    invoke("save_shortcuts", { shortcuts: updated }).catch(() => {});
+  }, []);
+
   const persistSnippets = useCallback((updated: Snippet[]) => {
     setSnippets(updated);
     invoke("save_snippets", { snippets: updated }).catch(() => {});
@@ -120,11 +130,12 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v);  setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
-    if (id === "decision") { setShowDecision((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
-    if (id === "sticky")   { setShowSticky((v) => !v);    setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); setShowConverter(false); return; }
-    if (id === "dropzone")  { setShowDropZone((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowConverter(false); return; }
-    if (id === "converter") { setShowConverter((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v);  setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
+    if (id === "decision") { setShowDecision((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
+    if (id === "sticky")   { setShowSticky((v) => !v);    setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
+    if (id === "dropzone")  { setShowDropZone((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowConverter(false); setShowShortcuts(false); return; }
+    if (id === "converter") { setShowConverter((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowShortcuts(false); return; }
+    if (id === "shortcuts") { setShowShortcuts((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -269,7 +280,8 @@ function MainView() {
                     a.id === "decision" && showDecision   ? "is-active" : "",
                     a.id === "sticky"   && showSticky    ? "is-active" : "",
                     a.id === "dropzone"  && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
-                    a.id === "converter" && showConverter ? "is-active" : "",
+                    a.id === "converter" && showConverter  ? "is-active" : "",
+                    a.id === "shortcuts" && showShortcuts  ? "is-active" : "",
                     ].filter(Boolean).join(" ")}
                     onPointerDown={() => setPressed(a.id)}
                     onPointerUp={() => { setPressed(null); runCommand(a.id); }}
@@ -395,6 +407,15 @@ function MainView() {
               {/* ── File Converter drawer ── */}
               {showConverter && <FileConverterDrawer showToast={showToast} />}
 
+              {/* ── Shortcuts drawer ── */}
+              {showShortcuts && (
+                <ShortcutsDrawer
+                  shortcuts={shortcuts}
+                  onChange={persistShortcuts}
+                  showToast={showToast}
+                />
+              )}
+
               {/* ── Drop Zone drawer ── */}
               {showDropZone && (
                 <DropZoneDrawer
@@ -405,7 +426,7 @@ function MainView() {
               )}
 
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && (
+              {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && !showShortcuts && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
                   <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -466,6 +487,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   sticky:    "📝",
   dropzone:  "📥",
   converter: "🔄",
+  shortcuts: "⚡",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

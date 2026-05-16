@@ -11,6 +11,7 @@ interface Note {
   w: number;
   h: number;
   opacity: number;
+  font_size: number;
 }
 
 const NOTE_COLORS: Record<string, string> = {
@@ -28,10 +29,12 @@ export function NoteWindow() {
 
   const [note, setNote]               = useState<Note | null>(null);
   const [opacity, setOpacity]         = useState(0.92);
+  const [fontSize, setFontSize]       = useState(11.5);
   const [editing, setEditing]         = useState(false);
   const [editContent, setEditContent] = useState("");
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
   const opacityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fontTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +42,7 @@ export function NoteWindow() {
       if (n) {
         setNote(n);
         setOpacity(Math.max(0.25, n.opacity ?? 0.92));
+        setFontSize(n.font_size ?? 11.5);
         setEditContent(n.content);
       }
     }).catch(() => {});
@@ -47,6 +51,17 @@ export function NoteWindow() {
   useEffect(() => {
     if (editing && textareaRef.current) textareaRef.current.focus();
   }, [editing]);
+
+  const handleFontSize = useCallback((delta: number) => {
+    setFontSize(prev => {
+      const next = Math.min(20, Math.max(9, Math.round((prev + delta) * 2) / 2));
+      if (fontTimer.current) clearTimeout(fontTimer.current);
+      fontTimer.current = setTimeout(() => {
+        invoke("save_note_font_size", { id, fontSize: next }).catch(() => {});
+      }, 300);
+      return next;
+    });
+  }, [id]);
 
   const handleOpacity = useCallback((val: number) => {
     setOpacity(val);
@@ -159,6 +174,7 @@ export function NoteWindow() {
             <textarea
               ref={textareaRef}
               className="nw-textarea"
+              style={{ fontSize: `${fontSize}px` }}
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={(e) => {
@@ -174,6 +190,7 @@ export function NoteWindow() {
         ) : (
           <p
             className="nw-content"
+            style={{ fontSize: `${fontSize}px` }}
             onDoubleClick={() => { setEditContent(note.content); setEditing(true); }}
             title="Düzenlemek için çift tıkla"
           >
@@ -182,8 +199,13 @@ export function NoteWindow() {
         )}
       </div>
 
-      {/* Footer: opacity slider */}
+      {/* Footer: font size + opacity */}
       <div className="nw-footer">
+        <div className="nw-font-controls">
+          <button className="nw-font-btn" onPointerUp={() => handleFontSize(-0.5)} title="Yazıyı küçült">A−</button>
+          <span className="nw-font-val">{fontSize % 1 === 0 ? fontSize : fontSize.toFixed(1)}</span>
+          <button className="nw-font-btn" onPointerUp={() => handleFontSize(+0.5)} title="Yazıyı büyüt">A+</button>
+        </div>
         <span className="nw-opacity-icon">◑</span>
         <input
           type="range"

@@ -40,11 +40,12 @@ pub fn save_snippets(snippets: &[Snippet]) {
 
 // ─── Notes ───────────────────────────────────────────────────────────────────
 
-fn default_note_x()       -> i32 { 300 }
-fn default_note_y()       -> i32 { 200 }
-fn default_note_opacity() -> f64 { 0.92 }
-fn default_note_w()       -> u32 { 220 }
-fn default_note_h()       -> u32 { 180 }
+fn default_note_x()         -> i32 { 300 }
+fn default_note_y()         -> i32 { 200 }
+fn default_note_opacity()   -> f64 { 0.92 }
+fn default_note_w()         -> u32 { 220 }
+fn default_note_h()         -> u32 { 180 }
+fn default_note_font_size() -> f64 { 11.5 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Note {
@@ -61,6 +62,8 @@ pub struct Note {
     pub w: u32,
     #[serde(default = "default_note_h")]
     pub h: u32,
+    #[serde(default = "default_note_font_size")]
+    pub font_size: f64,
 }
 
 fn notes_path() -> PathBuf {

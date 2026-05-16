@@ -176,6 +176,15 @@ pub fn save_note_size(id: String, w: u32, h: u32) {
 }
 
 #[tauri::command]
+pub fn save_note_font_size(id: String, font_size: f64) {
+    let mut notes = crate::config::load_notes();
+    if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
+        n.font_size = font_size.clamp(9.0, 20.0);
+    }
+    crate::config::save_notes(&notes);
+}
+
+#[tauri::command]
 pub fn save_note_opacity(id: String, opacity: f64) {
     let mut notes = crate::config::load_notes();
     if let Some(n) = notes.iter_mut().find(|n| n.id == id) {
@@ -308,6 +317,40 @@ pub fn resize_window(window: tauri::WebviewWindow, width: u32, height: u32) -> R
         SetWindowPos(hwnd.0, null_mut(), 0, 0, w as i32, h as i32, 0x0016);
     }
     Ok(())
+}
+
+// ─── Image Converter ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn pick_output_folder() -> Option<String> {
+    use windows::{
+        Win32::Foundation::HWND,
+        Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+        },
+        Win32::UI::Shell::{
+            FileOpenDialog, IFileOpenDialog, FILEOPENDIALOGOPTIONS, SIGDN_FILESYSPATH,
+        },
+    };
+    const FOS_PICKFOLDERS: FILEOPENDIALOGOPTIONS = FILEOPENDIALOGOPTIONS(0x20);
+
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let dialog: IFileOpenDialog =
+            CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).ok()?;
+        let opts = dialog.GetOptions().ok()?;
+        dialog.SetOptions(opts | FOS_PICKFOLDERS).ok()?;
+        dialog.Show(HWND(null_mut())).ok()?;
+        let item = dialog.GetResult().ok()?;
+        let pwstr = item.GetDisplayName(SIGDN_FILESYSPATH).ok()?;
+        pwstr.to_string().ok()
+    }
+}
+
+#[tauri::command]
+pub fn convert_image_file(src: String, dst: String) -> Result<(), String> {
+    let img = image::open(&src).map_err(|e| e.to_string())?;
+    img.save(&dst).map_err(|e| e.to_string())
 }
 
 // ─── Open file / Show in Explorer ────────────────────────────────────────────

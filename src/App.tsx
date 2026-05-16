@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { DecisionDrawer } from "./DecisionDrawer";
 import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
+import { FileConverterDrawer } from "./FileConverterDrawer";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -36,6 +37,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin or roll a dice." },
   { id: "sticky",    label: "Sticky Notes", description: "Quick notes pinned to your desktop." },
   { id: "dropzone",  label: "Drop Zone",    description: "Drag files here to stage them temporarily. Open, copy path, or reveal in Explorer." },
+  { id: "converter", label: "Converter",    description: "Convert images between PNG, JPG, WEBP and BMP formats. Drop images, pick output folder." },
 ];
 
 export default function App() {
@@ -64,6 +66,7 @@ function MainView() {
   const [showSticky, setShowSticky]         = useState(false);
   const [showDropZone, setShowDropZone]     = useState(false);
   const [dropZoneFiles, setDropZoneFiles]   = useState<DroppedFile[]>([]);
+  const [showConverter, setShowConverter]   = useState(false);
   const [inactiveOpacity, setInactiveOpacity] = useState(() =>
     Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
   );
@@ -117,10 +120,11 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); return; }
-    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); return; }
-    if (id === "sticky")   { setShowSticky((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); return; }
-    if (id === "dropzone") { setShowDropZone((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v);  setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
+    if (id === "decision") { setShowDecision((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
+    if (id === "sticky")   { setShowSticky((v) => !v);    setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); setShowConverter(false); return; }
+    if (id === "dropzone")  { setShowDropZone((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowConverter(false); return; }
+    if (id === "converter") { setShowConverter((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); return; }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -264,7 +268,8 @@ function MainView() {
                       a.id === "snippets" && showSnippets ? "is-active" : "",
                     a.id === "decision" && showDecision   ? "is-active" : "",
                     a.id === "sticky"   && showSticky    ? "is-active" : "",
-                    a.id === "dropzone" && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
+                    a.id === "dropzone"  && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
+                    a.id === "converter" && showConverter ? "is-active" : "",
                     ].filter(Boolean).join(" ")}
                     onPointerDown={() => setPressed(a.id)}
                     onPointerUp={() => { setPressed(null); runCommand(a.id); }}
@@ -387,6 +392,9 @@ function MainView() {
               {/* ── Sticky Notes drawer ── */}
               {showSticky && <StickyNotesDrawer showToast={showToast} />}
 
+              {/* ── File Converter drawer ── */}
+              {showConverter && <FileConverterDrawer showToast={showToast} />}
+
               {/* ── Drop Zone drawer ── */}
               {showDropZone && (
                 <DropZoneDrawer
@@ -397,7 +405,7 @@ function MainView() {
               )}
 
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && !showDecision && !showSticky && !showDropZone && (
+              {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
                   <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -457,6 +465,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   decision:  "🎯",
   sticky:    "📝",
   dropzone:  "📥",
+  converter: "🔄",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

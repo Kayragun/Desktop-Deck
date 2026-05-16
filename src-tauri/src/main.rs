@@ -242,6 +242,8 @@ fn main() {
             commands::open_note_window,
             commands::close_note_window,
             commands::resize_note_window,
+            commands::open_file,
+            commands::open_file_location,
             cleaner::start_cleaner,
             cleaner::stop_cleaner,
             cleaner::get_cleaner_active,

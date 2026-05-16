@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { DecisionDrawer } from "./DecisionDrawer";
 import { StickyNotesDrawer } from "./StickyNotesDrawer";
+import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -34,6 +35,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
   { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin or roll a dice." },
   { id: "sticky",    label: "Sticky Notes", description: "Quick notes pinned to your desktop." },
+  { id: "dropzone",  label: "Drop Zone",    description: "Drag files here to stage them temporarily. Open, copy path, or reveal in Explorer." },
 ];
 
 export default function App() {
@@ -60,6 +62,8 @@ function MainView() {
   const [cleanerSecs, setCleanerSecs]       = useState(60);
   const [showDecision, setShowDecision]     = useState(false);
   const [showSticky, setShowSticky]         = useState(false);
+  const [showDropZone, setShowDropZone]     = useState(false);
+  const [dropZoneFiles, setDropZoneFiles]   = useState<DroppedFile[]>([]);
   const [inactiveOpacity, setInactiveOpacity] = useState(() =>
     Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
   );
@@ -113,9 +117,10 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); setShowSticky(false); return; }
-    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); setShowSticky(false); return; }
-    if (id === "sticky")   { setShowSticky((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); return; }
+    if (id === "snippets") { setShowSnippets((v) => !v); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); return; }
+    if (id === "decision") { setShowDecision((v) => !v); setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); return; }
+    if (id === "sticky")   { setShowSticky((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); return; }
+    if (id === "dropzone") { setShowDropZone((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); return; }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -257,8 +262,9 @@ function MainView() {
                       pressed === a.id ? "is-pressed" : "",
                       a.id === "mic" && micMuted ? "is-muted" : "",
                       a.id === "snippets" && showSnippets ? "is-active" : "",
-                    a.id === "decision" && showDecision ? "is-active" : "",
-                    a.id === "sticky"   && showSticky   ? "is-active" : "",
+                    a.id === "decision" && showDecision   ? "is-active" : "",
+                    a.id === "sticky"   && showSticky    ? "is-active" : "",
+                    a.id === "dropzone" && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
                     ].filter(Boolean).join(" ")}
                     onPointerDown={() => setPressed(a.id)}
                     onPointerUp={() => { setPressed(null); runCommand(a.id); }}
@@ -381,8 +387,17 @@ function MainView() {
               {/* ── Sticky Notes drawer ── */}
               {showSticky && <StickyNotesDrawer showToast={showToast} />}
 
+              {/* ── Drop Zone drawer ── */}
+              {showDropZone && (
+                <DropZoneDrawer
+                  files={dropZoneFiles}
+                  setFiles={setDropZoneFiles}
+                  showToast={showToast}
+                />
+              )}
+
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && !showDecision && !showSticky && (
+              {!showSnippets && !showDecision && !showSticky && !showDropZone && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
                   <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
@@ -441,6 +456,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   cleaner:   "🧹",
   decision:  "🎯",
   sticky:    "📝",
+  dropzone:  "📥",
 };
 
 // ─── SVG icon components ──────────────────────────────────────────────────────

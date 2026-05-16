@@ -310,6 +310,32 @@ pub fn resize_window(window: tauri::WebviewWindow, width: u32, height: u32) -> R
     Ok(())
 }
 
+// ─── Open file / Show in Explorer ────────────────────────────────────────────
+
+#[tauri::command]
+pub fn open_file(path: String) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    // cmd /c start "" "path" opens with the default application
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &path])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_file_location(path: String) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    // explorer /select,"path" highlights the file in its folder
+    std::process::Command::new("explorer.exe")
+        .raw_arg(format!("/select,\"{}\"", path.replace('"', "\"\"")))
+        .creation_flags(0x08000000)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ─── Display / Projection ────────────────────────────────────────────────────
 
 #[tauri::command]

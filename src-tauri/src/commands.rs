@@ -1,6 +1,7 @@
 use core::ffi::c_void;
 use core::ptr::null_mut;
 use tauri::Manager;
+use winreg::{enums::*, RegKey};
 
 // ─── Recycle Bin ──────────────────────────────────────────────────────────────
 
@@ -459,6 +460,7 @@ const CLSID_MME: windows::core::GUID = windows::core::GUID {
     data4: [0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E],
 };
 
+// DEPRECATED: use get_mic_privacy_state / set_mic_privacy
 #[tauri::command]
 pub fn get_mic_state() -> Result<bool, String> {
     use windows::{
@@ -478,6 +480,7 @@ pub fn get_mic_state() -> Result<bool, String> {
     }
 }
 
+// DEPRECATED: use set_mic_privacy
 #[tauri::command]
 pub fn toggle_mic() -> Result<String, String> {
     use windows::{
@@ -499,4 +502,76 @@ pub fn toggle_mic() -> Result<String, String> {
         vol.SetMute(BOOL::from(new_muted), core::ptr::null()).map_err(|e| e.to_string())?;
         Ok(if new_muted { "muted".into() } else { "unmuted".into() })
     }
+}
+
+// ─── Privacy Kill-Switch (ConsentStore) ──────────────────────────────────────
+
+const CONSENT_BASE: &str =
+    "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore";
+
+fn read_consent(subkey: &str) -> Option<String> {
+    let path = format!("{}\\{}", CONSENT_BASE, subkey);
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let key = hkcu.open_subkey(&path).ok()?;
+    key.get_value::<String, _>("").ok()
+}
+
+fn write_consent(subkey: &str, value: &str) -> Result<(), String> {
+    let path = format!("{}\\{}", CONSENT_BASE, subkey);
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let key = match hkcu.open_subkey_with_flags(&path, KEY_WRITE) {
+        Ok(k) => k,
+        Err(_) => hkcu.create_subkey(&path).map_err(|e| e.to_string())?.0,
+    };
+    key.set_value("", &value.to_string()).map_err(|e| e.to_string())
+}
+
+fn detect_camera() -> bool {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Get-PnpDevice -Class Camera -Status OK 2>$null | Measure-Object | Select-Object -ExpandProperty Count",
+        ])
+        .creation_flags(0x08000000)
+        .output();
+    match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().unwrap_or(0) > 0,
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+pub fn get_camera_privacy_state() -> String {
+    if !detect_camera() {
+        return "no_device".into();
+    }
+    match read_consent("webcam").as_deref() {
+        Some("Deny") => "denied",
+        _ => "allowed",
+    }
+    .into()
+}
+
+#[tauri::command]
+pub fn set_camera_privacy(allow: bool) -> Result<String, String> {
+    write_consent("webcam", if allow { "Allow" } else { "Deny" })?;
+    Ok(if allow { "allowed" } else { "denied" }.into())
+}
+
+#[tauri::command]
+pub fn get_mic_privacy_state() -> String {
+    match read_consent("microphone").as_deref() {
+        Some("Deny") => "denied",
+        _ => "allowed",
+    }
+    .into()
+}
+
+#[tauri::command]
+pub fn set_mic_privacy(allow: bool) -> Result<String, String> {
+    write_consent("microphone", if allow { "Allow" } else { "Deny" })?;
+    Ok(if allow { "allowed" } else { "denied" }.into())
 }

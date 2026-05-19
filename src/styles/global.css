@@ -350,7 +350,7 @@ html, body {
   background: rgba(255, 255, 255, 0.09);
 }
 
-/* ── Mic muted state ────────────────────────────────── */
+/* ── Mic muted state (legacy alias) ─────────────────── */
 .action-btn.is-muted .btn-icon {
   filter: drop-shadow(0 0 5px rgba(255, 60, 60, 0.65))
           sepia(1) saturate(8) hue-rotate(310deg);
@@ -359,6 +359,24 @@ html, body {
 .action-btn.is-muted {
   border-color: rgba(255, 60, 60, 0.30);
   background: rgba(255, 40, 40, 0.07);
+}
+
+/* ── Privacy: OS-blocked (camera / mic denied) ──────── */
+.action-btn.is-denied .btn-icon {
+  filter: drop-shadow(0 0 5px rgba(255, 60, 60, 0.65))
+          sepia(1) saturate(8) hue-rotate(310deg);
+}
+
+.action-btn.is-denied {
+  border-color: rgba(255, 60, 60, 0.30);
+  background: rgba(255, 40, 40, 0.07);
+}
+
+/* ── Privacy: no device present ─────────────────────── */
+.action-btn.is-no-device {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ── Active/toggled button (e.g. Snippets open) ─────── */

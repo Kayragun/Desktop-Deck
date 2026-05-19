@@ -12,6 +12,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 interface Snippet { id: string; label: string; text: string; }
 interface Action   { id: string; label: string; description: string; }
 interface Toast    { msg: string; ok: boolean; key: number; }
+type PrivacyState = "no_device" | "allowed" | "denied";
 
 // ─── Command map ─────────────────────────────────────────────────────────────
 
@@ -22,7 +23,6 @@ const COMMANDS: Record<string, string> = {
   clipboard: "clear_clipboard",
   display:   "open_display",
   panic:     "panic_button",
-  mic:       "toggle_mic",
 };
 
 const STATIC_ACTIONS: Action[] = [
@@ -31,7 +31,8 @@ const STATIC_ACTIONS: Action[] = [
   { id: "clipboard", label: "Clipboard",    description: "Clears the entire Windows clipboard. Useful after copying sensitive data." },
   { id: "display",   label: "Display",      description: "Opens Windows display projection settings (Win+P)." },
   { id: "panic",     label: "Panic",        description: "Minimizes all open windows and mutes audio. Mute stays until you restore it." },
-  { id: "mic",       label: "Mic On",       description: "Microphone is active — click to mute." },
+  { id: "camera",    label: "Camera",       description: "Camera access is allowed. Click to block all apps (OS-level)." },
+  { id: "mic",       label: "Mic On",       description: "Microphone is allowed. Click to block all apps (OS-level)." },
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
@@ -55,7 +56,8 @@ function MainView() {
   const [pressed, setPressed]             = useState<string | null>(null);
   const [hovered, setHovered]             = useState<string | null>(null);
   const [toast, setToast]                 = useState<Toast | null>(null);
-  const [micMuted, setMicMuted]           = useState(false);
+  const [camState, setCamState]           = useState<PrivacyState>("allowed");
+  const [micState, setMicState]           = useState<PrivacyState>("allowed");
   const [showSnippets, setShowSnippets]   = useState(false);
   const [showSettings, setShowSettings]   = useState(false);
   const [snippets, setSnippets]           = useState<Snippet[]>([]);
@@ -77,9 +79,22 @@ function MainView() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    invoke<boolean>("get_mic_state").then(setMicMuted).catch(() => {});
+    invoke<string>("get_camera_privacy_state").then((s) => setCamState(s as PrivacyState)).catch(() => {});
+    invoke<string>("get_mic_privacy_state").then((s) => setMicState(s as PrivacyState)).catch(() => {});
     invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
     invoke<Shortcut[]>("get_shortcuts").then(setShortcuts).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const [cs, ms] = await Promise.allSettled([
+        invoke<string>("get_camera_privacy_state"),
+        invoke<string>("get_mic_privacy_state"),
+      ]);
+      if (cs.status === "fulfilled") setCamState(cs.value as PrivacyState);
+      if (ms.status === "fulfilled") setMicState(ms.value as PrivacyState);
+    }, 4000);
+    return () => clearInterval(id);
   }, []);
 
   // Cleaner mode: countdown + polling for external deactivation (Ctrl+F12 / timeout)
@@ -140,16 +155,31 @@ function MainView() {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
     }
+    if (id === "camera") {
+      if (camState === "no_device") return;
+      const allow = camState === "denied";
+      invoke<string>("set_camera_privacy", { allow })
+        .then((s) => { setCamState(s as PrivacyState); showToast(allow ? "Camera unblocked" : "Camera blocked", true); })
+        .catch((e: unknown) => showToast(String(e), false));
+      return;
+    }
+    if (id === "mic") {
+      if (micState === "no_device") return;
+      const allow = micState === "denied";
+      invoke<string>("set_mic_privacy", { allow })
+        .then((s) => { setMicState(s as PrivacyState); showToast(allow ? "Mic unblocked" : "Mic blocked", true); })
+        .catch((e: unknown) => showToast(String(e), false));
+      return;
+    }
     const cmd = COMMANDS[id];
     if (!cmd) { showToast("Coming soon", false); return; }
     invoke<string | null>(cmd)
       .then((result) => {
         const msg = typeof result === "string" && result.length ? result : "Done";
         showToast(msg, true);
-        if (id === "mic") setMicMuted(msg === "muted");
       })
       .catch((err: unknown) => showToast(String(err), false));
-  }, [showToast]);
+  }, [showToast, camState, micState]);
 
   // JS-based drag
   const handleDragStart = useCallback(async (e: React.PointerEvent) => {
@@ -202,14 +232,22 @@ function MainView() {
     document.addEventListener("pointerup", () => document.removeEventListener("pointermove", onMove), { once: true });
   }, []);
 
-  const micLabel = micMuted ? "Mic Off" : "Mic On";
-  const micDesc  = micMuted
-    ? "Microphone is muted — click to unmute."
-    : "Microphone is active — click to mute.";
+  const privacyLabel = (id: "camera" | "mic", s: PrivacyState) => {
+    if (s === "no_device") return id === "camera" ? "No Camera" : "No Mic";
+    if (s === "denied")    return id === "camera" ? "Cam Off"   : "Mic Off";
+    return id === "camera" ? "Camera" : "Mic On";
+  };
+  const privacyDesc = (id: "camera" | "mic", s: PrivacyState) => {
+    if (s === "no_device") return `No ${id === "camera" ? "camera" : "microphone"} detected on this system.`;
+    if (s === "denied")    return `${id === "camera" ? "Camera" : "Microphone"} is OS-blocked — no app can access it. Click to allow.`;
+    return `${id === "camera" ? "Camera" : "Microphone"} is allowed. Click to block all apps (OS-level).`;
+  };
 
-  const actions = STATIC_ACTIONS.map((a) =>
-    a.id === "mic" ? { ...a, label: micLabel, description: micDesc } : a
-  );
+  const actions = STATIC_ACTIONS.map((a) => {
+    if (a.id === "camera") return { ...a, label: privacyLabel("camera", camState), description: privacyDesc("camera", camState) };
+    if (a.id === "mic")    return { ...a, label: privacyLabel("mic", micState),    description: privacyDesc("mic", micState) };
+    return a;
+  });
   const hoveredAction = actions.find((a) => a.id === hovered);
 
   return (
@@ -275,7 +313,10 @@ function MainView() {
                     className={[
                       "action-btn",
                       pressed === a.id ? "is-pressed" : "",
-                      a.id === "mic" && micMuted ? "is-muted" : "",
+                      (a.id === "mic"    && micState  === "denied")    ? "is-denied"    : "",
+                      (a.id === "mic"    && micState  === "no_device") ? "is-no-device" : "",
+                      (a.id === "camera" && camState  === "denied")    ? "is-denied"    : "",
+                      (a.id === "camera" && camState  === "no_device") ? "is-no-device" : "",
                       a.id === "snippets" && showSnippets ? "is-active" : "",
                     a.id === "decision" && showDecision   ? "is-active" : "",
                     a.id === "sticky"   && showSticky    ? "is-active" : "",
@@ -290,9 +331,11 @@ function MainView() {
                     onMouseLeave={() => setHovered(null)}
                   >
                     <span className="btn-icon">
-                      {a.id === "mic"
-                        ? <MicIcon muted={micMuted} />
-                        : BTN_ICONS[a.id]}
+                      {a.id === "camera"
+                        ? <CameraIcon state={camState} />
+                        : a.id === "mic"
+                          ? <MicPrivacyIcon state={micState} />
+                          : BTN_ICONS[a.id]}
                     </span>
                     <span className="btn-label">{a.label}</span>
                   </button>
@@ -492,15 +535,32 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
 
 // ─── SVG icon components ──────────────────────────────────────────────────────
 
-function MicIcon({ muted }: { muted: boolean }) {
-  const c = muted ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
+function CameraIcon({ state }: { state: PrivacyState }) {
+  const opacity = state === "no_device" ? 0.28 : 1;
+  const c = state === "denied" ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
   return (
-    <svg width="14" height="16" viewBox="4 1 16 22" fill="none" aria-hidden style={{ display: "block" }}>
+    <svg width="16" height="14" viewBox="0 0 24 20" fill="none" aria-hidden style={{ display: "block", opacity }}>
+      <rect x="1" y="5" width="22" height="14" rx="3" fill={c} />
+      <circle cx="12" cy="12" r="4" fill={state === "denied" ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.35)"} />
+      <circle cx="12" cy="12" r="2.2" fill={state === "denied" ? "rgba(255,255,255,0.10)" : c} />
+      <path d="M8 5V3.5A1.5 1.5 0 0 1 9.5 2h5A1.5 1.5 0 0 1 16 3.5V5" stroke={c} strokeWidth="1.5" fill="none"/>
+      {state === "denied" && (
+        <line x1="3" y1="3" x2="21" y2="19" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
+      )}
+    </svg>
+  );
+}
+
+function MicPrivacyIcon({ state }: { state: PrivacyState }) {
+  const opacity = state === "no_device" ? 0.28 : 1;
+  const c = state === "denied" ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
+  return (
+    <svg width="14" height="16" viewBox="4 1 16 22" fill="none" aria-hidden style={{ display: "block", opacity }}>
       <rect x="9" y="2" width="6" height="12" rx="3" fill={c} />
       <path d="M5 11a7 7 0 0 0 14 0" stroke={c} strokeWidth="2" strokeLinecap="round" fill="none"/>
       <line x1="12" y1="18" x2="12" y2="21" stroke={c} strokeWidth="2" strokeLinecap="round"/>
       <line x1="8"  y1="21" x2="16" y2="21" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      {muted && (
+      {state === "denied" && (
         <line x1="5" y1="4" x2="19" y2="20" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
       )}
     </svg>

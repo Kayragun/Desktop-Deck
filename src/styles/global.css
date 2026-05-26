@@ -124,6 +124,74 @@ html, body {
   to   { opacity: 1; transform: none; }
 }
 
+/* ── System Monitor Strip ───────────────────────────── */
+.sysmon-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 28px;
+  flex-shrink: 0;
+  cursor: grab;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.018);
+}
+
+.sysmon-strip:active { cursor: grabbing; }
+
+.sysmon-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sysmon-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.62);
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.sysmon-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.09);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 20px;
+}
+
+.sysmon-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 700ms ease;
+}
+
+.sysmon-pct {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  min-width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+  transition: color 700ms ease;
+}
+
+.sysmon-sep {
+  width: 1px;
+  height: 11px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 7px;
+}
+
 /* ── Header ─────────────────────────────────────────── */
 .panel-header {
   position: relative;

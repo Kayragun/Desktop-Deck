@@ -1,5 +1,7 @@
 use core::ffi::c_void;
 use core::ptr::null_mut;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 use tauri::Manager;
 use winreg::{enums::*, RegKey};
 
@@ -390,6 +392,120 @@ pub fn open_file_location(path: String) -> Result<(), String> {
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ─── CPU Usage ────────────────────────────────────────────────────────────────
+
+static CPU_PREV_IDLE:  AtomicU64 = AtomicU64::new(0);
+static CPU_PREV_TOTAL: AtomicU64 = AtomicU64::new(0);
+
+#[repr(C)]
+struct FileTime { low: u32, high: u32 }
+impl FileTime { fn as_u64(&self) -> u64 { (self.high as u64) << 32 | self.low as u64 } }
+
+extern "system" {
+    fn GetSystemTimes(idle: *mut FileTime, kernel: *mut FileTime, user: *mut FileTime) -> i32;
+}
+
+#[tauri::command]
+pub fn get_cpu_usage() -> Option<f64> {
+    let mut idle   = FileTime { low: 0, high: 0 };
+    let mut kernel = FileTime { low: 0, high: 0 };
+    let mut user   = FileTime { low: 0, high: 0 };
+    unsafe { if GetSystemTimes(&mut idle, &mut kernel, &mut user) == 0 { return None; } }
+    let idle_v  = idle.as_u64();
+    let total_v = kernel.as_u64() + user.as_u64();
+    let prev_idle  = CPU_PREV_IDLE.swap(idle_v,  Ordering::Relaxed);
+    let prev_total = CPU_PREV_TOTAL.swap(total_v, Ordering::Relaxed);
+    if prev_total == 0 { return None; }
+    let d_idle  = idle_v.saturating_sub(prev_idle);
+    let d_total = total_v.saturating_sub(prev_total);
+    if d_total == 0 { return Some(0.0); }
+    Some(((1.0 - d_idle as f64 / d_total as f64) * 100.0).clamp(0.0, 100.0))
+}
+
+#[tauri::command]
+pub fn open_task_manager() {
+    use std::os::windows::process::CommandExt;
+    std::process::Command::new("taskmgr.exe")
+        .creation_flags(0x08000000)
+        .spawn()
+        .ok();
+}
+
+// ─── GPU Usage (PDH) ──────────────────────────────────────────────────────────
+
+#[link(name = "Pdh")]
+extern "system" {
+    fn PdhOpenQueryW(src: *const u16, data: usize, phq: *mut *mut c_void) -> u32;
+    fn PdhAddEnglishCounterW(hq: *mut c_void, path: *const u16, data: usize, phc: *mut *mut c_void) -> u32;
+    fn PdhCollectQueryData(hq: *mut c_void) -> u32;
+    fn PdhGetFormattedCounterArrayW(hc: *mut c_void, fmt: u32, sz: *mut u32, cnt: *mut u32, buf: *mut u8) -> u32;
+}
+
+const PDH_FMT_DOUBLE: u32 = 0x00000200;
+const PDH_MORE_DATA:  u32 = 0x800007D2;
+
+#[repr(C)] struct PdhFmtValue { status: u32, _pad: u32, val: f64 }
+#[repr(C)] struct PdhFmtItem  { _name: usize, fv: PdhFmtValue }
+
+struct GpuPdh { query: *mut c_void, counter: *mut c_void }
+unsafe impl Send for GpuPdh {}
+
+static GPU_PDH: OnceLock<Mutex<Option<GpuPdh>>> = OnceLock::new();
+
+fn gpu_pdh_handle() -> &'static Mutex<Option<GpuPdh>> {
+    GPU_PDH.get_or_init(|| unsafe {
+        let path: Vec<u16> = "\\GPU Engine(*engtype_3D)\\Utilization Percentage\0"
+            .encode_utf16().collect();
+        let mut query: *mut c_void = null_mut();
+        if PdhOpenQueryW(null_mut(), 0, &mut query) != 0 { return Mutex::new(None); }
+        let mut counter: *mut c_void = null_mut();
+        if PdhAddEnglishCounterW(query, path.as_ptr(), 0, &mut counter) != 0 {
+            return Mutex::new(None);
+        }
+        PdhCollectQueryData(query); // prime — sets t0
+        Mutex::new(Some(GpuPdh { query, counter }))
+    })
+}
+
+#[tauri::command]
+pub fn get_gpu_usage() -> Option<f64> {
+    let guard = gpu_pdh_handle().lock().ok()?;
+    let pdh = guard.as_ref()?;
+    unsafe {
+        if PdhCollectQueryData(pdh.query) != 0 { return None; }
+        let mut buf_size: u32 = 0;
+        let mut cnt: u32 = 0;
+        let r1 = PdhGetFormattedCounterArrayW(pdh.counter, PDH_FMT_DOUBLE, &mut buf_size, &mut cnt, null_mut());
+        if r1 == PDH_MORE_DATA && buf_size > 0 {
+            let mut buf = vec![0u8; buf_size as usize];
+            let r2 = PdhGetFormattedCounterArrayW(pdh.counter, PDH_FMT_DOUBLE, &mut buf_size, &mut cnt, buf.as_mut_ptr());
+            if r2 != 0 { return None; }
+            let items = std::slice::from_raw_parts(buf.as_ptr() as *const PdhFmtItem, cnt as usize);
+            let total: f64 = items.iter().filter(|i| i.fv.status == 0).map(|i| i.fv.val).sum();
+            return Some(total.clamp(0.0, 100.0));
+        }
+        if cnt == 0 { Some(0.0) } else { None }
+    }
+}
+
+// ─── RAM Usage ────────────────────────────────────────────────────────────────
+
+#[repr(C)]
+struct MemStatusEx { dw_length: u32, dw_memory_load: u32, _rest: [u64; 7] }
+
+extern "system" { fn GlobalMemoryStatusEx(buf: *mut MemStatusEx) -> i32; }
+
+#[tauri::command]
+pub fn get_ram_usage() -> Option<f64> {
+    let mut ms = MemStatusEx {
+        dw_length: std::mem::size_of::<MemStatusEx>() as u32,
+        dw_memory_load: 0,
+        _rest: [0; 7],
+    };
+    unsafe { if GlobalMemoryStatusEx(&mut ms) == 0 { return None; } }
+    Some(ms.dw_memory_load as f64)
 }
 
 // ─── Display / Projection ────────────────────────────────────────────────────

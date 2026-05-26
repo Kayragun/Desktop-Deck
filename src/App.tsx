@@ -23,6 +23,7 @@ const COMMANDS: Record<string, string> = {
   clipboard: "clear_clipboard",
   display:   "open_display",
   panic:     "panic_button",
+  cpu:       "open_task_manager",
 };
 
 const STATIC_ACTIONS: Action[] = [
@@ -34,6 +35,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "camera",    label: "Camera",       description: "Camera access is allowed. Click to block all apps (OS-level)." },
   { id: "mic",       label: "Mic On",       description: "Microphone is allowed. Click to block all apps (OS-level)." },
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
+  { id: "cpu",       label: "CPU",          description: "Monitors CPU usage in real time. Click to open Task Manager." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
   { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin, roll a dice, or spin the wheel." },
@@ -58,6 +60,9 @@ function MainView() {
   const [toast, setToast]                 = useState<Toast | null>(null);
   const [camState, setCamState]           = useState<PrivacyState>("allowed");
   const [micState, setMicState]           = useState<PrivacyState>("allowed");
+  const [cpuUsage, setCpuUsage]           = useState<number | null>(null);
+  const [gpuUsage, setGpuUsage]           = useState<number | null>(null);
+  const [ramUsage, setRamUsage]           = useState<number | null>(null);
   const [showSnippets, setShowSnippets]   = useState(false);
   const [showSettings, setShowSettings]   = useState(false);
   const [snippets, setSnippets]           = useState<Snippet[]>([]);
@@ -83,6 +88,9 @@ function MainView() {
     invoke<string>("get_mic_privacy_state").then((s) => setMicState(s as PrivacyState)).catch(() => {});
     invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
     invoke<Shortcut[]>("get_shortcuts").then(setShortcuts).catch(() => {});
+    invoke("get_cpu_usage").catch(() => {}); // set baseline for first delta
+    invoke("get_gpu_usage").catch(() => {}); // prime GPU PDH query
+    invoke<number | null>("get_ram_usage").then((v) => { if (v !== null) setRamUsage(v); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -94,6 +102,20 @@ function MainView() {
       if (cs.status === "fulfilled") setCamState(cs.value as PrivacyState);
       if (ms.status === "fulfilled") setMicState(ms.value as PrivacyState);
     }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const [cpu, gpu, ram] = await Promise.allSettled([
+        invoke<number | null>("get_cpu_usage"),
+        invoke<number | null>("get_gpu_usage"),
+        invoke<number | null>("get_ram_usage"),
+      ]);
+      if (cpu.status === "fulfilled" && cpu.value !== null) setCpuUsage(cpu.value);
+      if (gpu.status === "fulfilled" && gpu.value !== null) setGpuUsage(gpu.value);
+      if (ram.status === "fulfilled" && ram.value !== null) setRamUsage(ram.value);
+    }, 2000);
     return () => clearInterval(id);
   }, []);
 
@@ -246,6 +268,7 @@ function MainView() {
   const actions = STATIC_ACTIONS.map((a) => {
     if (a.id === "camera") return { ...a, label: privacyLabel("camera", camState), description: privacyDesc("camera", camState) };
     if (a.id === "mic")    return { ...a, label: privacyLabel("mic", micState),    description: privacyDesc("mic", micState) };
+    if (a.id === "cpu")    return { ...a, description: cpuUsage !== null ? `CPU usage: ${Math.round(cpuUsage)}% — Click to open Task Manager.` : "Monitors CPU usage in real time. Click to open Task Manager." };
     return a;
   });
   const hoveredAction = actions.find((a) => a.id === hovered);
@@ -266,6 +289,9 @@ function MainView() {
             {toast.msg}
           </div>
         )}
+
+        {/* ── Sysmon strip ── */}
+        <SysMonStrip cpu={cpuUsage} gpu={gpuUsage} ram={ramUsage} onPointerDown={handleDragStart} />
 
         {/* ── Header ── */}
         <header className="panel-header" onPointerDown={handleDragStart}>
@@ -335,7 +361,9 @@ function MainView() {
                         ? <CameraIcon state={camState} />
                         : a.id === "mic"
                           ? <MicPrivacyIcon state={micState} />
-                          : BTN_ICONS[a.id]}
+                          : a.id === "cpu"
+                            ? <CpuIcon usage={cpuUsage} />
+                            : BTN_ICONS[a.id]}
                     </span>
                     <span className="btn-label">{a.label}</span>
                   </button>
@@ -563,6 +591,72 @@ function MicPrivacyIcon({ state }: { state: PrivacyState }) {
       {state === "denied" && (
         <line x1="5" y1="4" x2="19" y2="20" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
       )}
+    </svg>
+  );
+}
+
+// ─── System Monitor Strip ─────────────────────────────────────────────────────
+
+function SysMonStrip({
+  cpu, gpu, ram, onPointerDown,
+}: {
+  cpu: number | null; gpu: number | null; ram: number | null;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  return (
+    <div className="sysmon-strip" onPointerDown={onPointerDown}>
+      <SysMonItem label="CPU" value={cpu} color={gaugeColor(cpu)} />
+      <div className="sysmon-sep" />
+      <SysMonItem label="GPU" value={gpu} color={gaugeColor(gpu)} />
+      <div className="sysmon-sep" />
+      <SysMonItem label="RAM" value={ram} color={gaugeColor(ram)} />
+    </div>
+  );
+}
+
+function gaugeColor(v: number | null): string {
+  if (v === null) return "rgba(255,255,255,0.20)";
+  if (v > 80) return "#ef4444";
+  if (v > 50) return "#f59e0b";
+  return "#4ade80";
+}
+
+function SysMonItem({ label, value, color }: { label: string; value: number | null; color: string }) {
+  const pct = value ?? 0;
+  return (
+    <div className="sysmon-item">
+      <span className="sysmon-label">{label}</span>
+      <div className="sysmon-bar-wrap">
+        <div className="sysmon-bar-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className="sysmon-pct" style={{ color }}>{value !== null ? `${Math.round(pct)}%` : "—"}</span>
+    </div>
+  );
+}
+
+function CpuIcon({ usage }: { usage: number | null }) {
+  const pct = usage ?? 0;
+  const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#4ade80";
+  const label = usage !== null ? `${Math.round(pct)}` : "--";
+  const fontSize = label.length > 2 ? "4.5" : "5.5";
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden style={{ display: "block" }}>
+      <rect x="6" y="6" width="12" height="12" rx="2" stroke="rgba(255,255,255,0.60)" strokeWidth="1.4" fill="rgba(255,255,255,0.06)"/>
+      <text x="12" y="12" textAnchor="middle" dominantBaseline="middle" fontSize={fontSize} fill={color} fontFamily="system-ui,sans-serif" fontWeight="700" letterSpacing="-0.3">
+        {label}
+      </text>
+      <line x1="9"  y1="3"  x2="9"  y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="12" y1="3"  x2="12" y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="15" y1="3"  x2="15" y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="9"  y1="18" x2="9"  y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="12" y1="18" x2="12" y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="15" y1="18" x2="15" y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="3"  y1="9"  x2="6"  y2="9"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="3"  y1="12" x2="6"  y2="12" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="3"  y1="15" x2="6"  y2="15" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="18" y1="9"  x2="21" y2="9"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="18" y1="12" x2="21" y2="12" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
+      <line x1="18" y1="15" x2="21" y2="15" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   );
 }

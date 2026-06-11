@@ -8,10 +8,12 @@
   /* ── Glass (backdrop blur on the panel) ──────────────*/
   --dd-glass-blur:  blur(22px) saturate(170%);   /* @kind other */
 
-  /* ── Elevation shadows ───────────────────────────────*/
+  /* ── Elevation shadows ───────────────────────────────
+     Panel: no blurred drop — in a transparent desktop
+     window it clips to the overlay gutter and reads as a
+     gray frame on light wallpapers. Contact line only.   */
   --dd-shadow-panel:
     0 0 0 0.5px rgba(0, 0, 0, 0.55),
-    0 10px 40px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
 
   --dd-shadow-tile:

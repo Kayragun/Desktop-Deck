@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Desktop Deck",
-        "width": 280,
-        "height": 420,
+        "width": 350,
+        "height": 580,
         "decorations": false,
         "transparent": true,
         "skipTaskbar": true,

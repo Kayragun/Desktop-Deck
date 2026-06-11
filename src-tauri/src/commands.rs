@@ -301,13 +301,26 @@ pub fn resize_note_window(window: tauri::WebviewWindow, width: u32, height: u32)
 
 #[tauri::command]
 pub fn move_window(window: tauri::WebviewWindow, x: i32, y: i32) -> Result<(), String> {
+    #[repr(C)]
+    struct Point { x: i32, y: i32 }
     extern "system" {
         fn SetWindowPos(h: *mut c_void, ins: *mut c_void, x: i32, y: i32, cx: i32, cy: i32, f: u32) -> i32;
+        fn GetAncestor(hwnd: *mut c_void, flags: u32) -> *mut c_void;
+        fn GetDesktopWindow() -> *mut c_void;
+        fn MapWindowPoints(from: *mut c_void, to: *mut c_void, points: *mut Point, count: u32) -> i32;
     }
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let mut pt = Point { x, y };
     unsafe {
+        // The widget is reparented under WorkerW/Progman (desktop::attach_to_desktop),
+        // so SetWindowPos expects parent-client coordinates while the JS drag sends
+        // screen coordinates (outerPosition). Map screen → parent client.
+        let parent = GetAncestor(hwnd.0, 1); // GA_PARENT
+        if !parent.is_null() && parent != GetDesktopWindow() {
+            MapWindowPoints(null_mut(), parent, &mut pt, 1);
+        }
         // SWP_NOSIZE=0x0001 | SWP_NOZORDER=0x0004 | SWP_NOACTIVATE=0x0010
-        SetWindowPos(hwnd.0, null_mut(), x, y, 0, 0, 0x0015);
+        SetWindowPos(hwnd.0, null_mut(), pt.x, pt.y, 0, 0, 0x0015);
     }
     Ok(())
 }
@@ -323,10 +336,13 @@ pub fn resize_window(window: tauri::WebviewWindow, width: u32, height: u32) -> R
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
     let dpi = unsafe { GetDpiForWindow(hwnd.0) };
     let scale = dpi as f64 / 96.0;
-    let min_w = (280.0 * scale).round() as u32;
-    let min_h = (520.0 * scale).round() as u32;
-    let w = width.max(min_w);
-    let h = height.max(min_h);
+    // Logical-px limits — keep in sync with MIN_W/MAX_W etc. in src/App.tsx.
+    let min_w = (350.0 * scale).round() as u32;
+    let min_h = (580.0 * scale).round() as u32;
+    let max_w = (640.0 * scale).round() as u32;
+    let max_h = (960.0 * scale).round() as u32;
+    let w = width.clamp(min_w, max_w);
+    let h = height.clamp(min_h, max_h);
     unsafe {
         // SWP_NOMOVE=0x0002 | SWP_NOZORDER=0x0004 | SWP_NOACTIVATE=0x0010
         SetWindowPos(hwnd.0, null_mut(), 0, 0, w as i32, h as i32, 0x0016);

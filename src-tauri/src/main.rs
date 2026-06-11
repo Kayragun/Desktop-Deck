@@ -15,6 +15,7 @@ mod autostart;
 mod cleaner;
 mod commands;
 mod config;
+mod deckkeys;
 mod desktop;
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -257,6 +258,11 @@ fn main() {
             commands::get_gpu_usage,
             commands::get_ram_usage,
             commands::open_task_manager,
+            deckkeys::get_deck_keys,
+            deckkeys::save_deck_keys,
+            deckkeys::list_installed_apps,
+            deckkeys::get_file_icon,
+            deckkeys::get_url_icon,
             cleaner::start_cleaner,
             cleaner::stop_cleaner,
             cleaner::get_cleaner_active,

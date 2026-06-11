@@ -4,6 +4,7 @@ import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
 import { FileConverterDrawer } from "./FileConverterDrawer";
 import { ShortcutsDrawer, Shortcut } from "./ShortcutsDrawer";
+import { QuickAddDrawer, DeckKey } from "./QuickAddDrawer";
 import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -27,6 +28,11 @@ const COMMANDS: Record<string, string> = {
   cpu:       "open_task_manager",
 };
 
+// Window size limits in CSS px (× devicePixelRatio before IPC).
+// Keep in sync with resize_window in src-tauri/src/commands.rs.
+const MIN_W = 350, MIN_H = 580;
+const MAX_W = 640, MAX_H = 960;
+
 const STATIC_ACTIONS: Action[] = [
   { id: "recycle",   label: "Recycle Bin", description: "Empties the Windows Recycle Bin. A confirmation dialog will appear." },
   { id: "folder",    label: "New Folder",   description: "Creates a new empty folder on your Desktop." },
@@ -36,7 +42,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "camera",    label: "Camera",       description: "Camera access is allowed. Click to block all apps (OS-level)." },
   { id: "mic",       label: "Mic On",       description: "Microphone is allowed. Click to block all apps (OS-level)." },
   { id: "ram",       label: "RAM Flush",    description: "Flushes working set memory across all processes to free up RAM." },
-  { id: "cpu",       label: "CPU",          description: "Monitors CPU usage in real time. Click to open Task Manager." },
+  { id: "cpu",       label: "Task Manager", description: "Monitors CPU usage in real time. Click to open Task Manager." },
   { id: "snippets",  label: "Snippets",     description: "Click any snippet to copy it to clipboard." },
   { id: "cleaner",   label: "Cleaner",      description: "Locks keyboard for physical cleaning. Click 'Stop Cleaning' or wait 60s to unlock." },
   { id: "decision",  label: "Decision",     description: "Can't decide? Flip a coin, roll a dice, or spin the wheel." },
@@ -79,6 +85,8 @@ function MainView() {
   const [showConverter, setShowConverter]   = useState(false);
   const [showShortcuts, setShowShortcuts]   = useState(false);
   const [shortcuts, setShortcuts]           = useState<Shortcut[]>([]);
+  const [showQuickAdd, setShowQuickAdd]     = useState(false);
+  const [deckKeys, setDeckKeys]             = useState<DeckKey[]>([]);
   const [inactiveOpacity, setInactiveOpacity] = useState(() =>
     Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
   );
@@ -89,6 +97,7 @@ function MainView() {
     invoke<string>("get_mic_privacy_state").then((s) => setMicState(s as PrivacyState)).catch(() => {});
     invoke<Snippet[]>("get_snippets").then(setSnippets).catch(() => {});
     invoke<Shortcut[]>("get_shortcuts").then(setShortcuts).catch(() => {});
+    invoke<DeckKey[]>("get_deck_keys").then(setDeckKeys).catch(() => {});
     invoke("get_cpu_usage").catch(() => {}); // set baseline for first delta
     invoke("get_gpu_usage").catch(() => {}); // prime GPU PDH query
     invoke<number | null>("get_ram_usage").then((v) => { if (v !== null) setRamUsage(v); }).catch(() => {});
@@ -148,6 +157,17 @@ function MainView() {
     invoke("save_shortcuts", { shortcuts: updated }).catch(() => {});
   }, []);
 
+  const persistDeckKeys = useCallback((updated: DeckKey[]) => {
+    setDeckKeys(updated);
+    invoke("save_deck_keys", { keys: updated }).catch(() => {});
+  }, []);
+
+  const launchDeckKey = useCallback((k: DeckKey) => {
+    invoke("open_file", { path: k.target })
+      .then(() => showToast(`Opened: ${k.label}`, true))
+      .catch((e: unknown) => showToast(String(e), false));
+  }, [showToast]);
+
   const persistSnippets = useCallback((updated: Snippet[]) => {
     setSnippets(updated);
     invoke("save_snippets", { snippets: updated }).catch(() => {});
@@ -168,12 +188,23 @@ function MainView() {
   }, [snippets, persistSnippets]);
 
   const runCommand = useCallback((id: string) => {
-    if (id === "snippets") { setShowSnippets((v) => !v);  setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
-    if (id === "decision") { setShowDecision((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
-    if (id === "sticky")   { setShowSticky((v) => !v);    setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowDropZone(false); setShowConverter(false); setShowShortcuts(false); return; }
-    if (id === "dropzone")  { setShowDropZone((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowConverter(false); setShowShortcuts(false); return; }
-    if (id === "converter") { setShowConverter((v) => !v);  setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowShortcuts(false); return; }
-    if (id === "shortcuts") { setShowShortcuts((v) => !v); setShowSnippets(false); setShowSettings(false); setShowDecision(false); setShowSticky(false); setShowDropZone(false); setShowConverter(false); return; }
+    // Drawers are mutually exclusive: toggling one closes the rest.
+    const drawers: Record<string, [boolean, (v: boolean) => void]> = {
+      snippets:  [showSnippets,  setShowSnippets],
+      decision:  [showDecision,  setShowDecision],
+      sticky:    [showSticky,    setShowSticky],
+      dropzone:  [showDropZone,  setShowDropZone],
+      converter: [showConverter, setShowConverter],
+      shortcuts: [showShortcuts, setShowShortcuts],
+      quickadd:  [showQuickAdd,  setShowQuickAdd],
+    };
+    if (id in drawers) {
+      const wasOpen = drawers[id][0];
+      Object.values(drawers).forEach(([, set]) => set(false));
+      setShowSettings(false);
+      if (!wasOpen) drawers[id][1](true);
+      return;
+    }
     if (id === "cleaner") {
       invoke("start_cleaner").then(() => setCleanerActive(true)).catch(() => {});
       return;
@@ -202,57 +233,81 @@ function MainView() {
         showToast(msg, true);
       })
       .catch((err: unknown) => showToast(String(err), false));
-  }, [showToast, camState, micState]);
+  }, [
+    showToast, camState, micState,
+    showSnippets, showDecision, showSticky, showDropZone,
+    showConverter, showShortcuts, showQuickAdd,
+  ]);
 
   // JS-based drag
-  const handleDragStart = useCallback(async (e: React.PointerEvent) => {
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
     if (!e.isPrimary) return;
     if (e.pointerType !== "mouse") return;
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
-    const win = getCurrentWindow();
+    const target = e.target as HTMLElement;
+    const pointerId = e.pointerId;
     const dpr = window.devicePixelRatio || 1;
-    let initPos: { x: number; y: number };
-    try { initPos = await win.outerPosition(); } catch { return; }
     const startX = e.screenX;
     const startY = e.screenY;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Listeners must attach synchronously: awaiting before attaching lets a
+    // fast click release before pointerup is registered, leaving onMove stuck.
+    let initPos: { x: number; y: number } | null = null;
+    getCurrentWindow().outerPosition().then((p) => { initPos = p; }).catch(() => {});
+    try { target.setPointerCapture(pointerId); } catch { /* target may be gone */ }
     let rafId: number | null = null;
     let moveX = 0, moveY = 0;
+    const apply = () => {
+      rafId = null;
+      if (initPos) invoke("move_window", { x: initPos.x + moveX, y: initPos.y + moveY }).catch(() => {});
+    };
     const onMove = (ev: PointerEvent) => {
       moveX = Math.round((ev.screenX - startX) * dpr);
       moveY = Math.round((ev.screenY - startY) * dpr);
-      if (rafId === null) {
-        rafId = requestAnimationFrame(() => {
-          rafId = null;
-          invoke("move_window", { x: initPos.x + moveX, y: initPos.y + moveY }).catch(() => {});
-        });
-      }
+      if (rafId === null) rafId = requestAnimationFrame(apply);
+    };
+    const finish = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", finish);
+      document.removeEventListener("pointercancel", finish);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      apply(); // commit the final position the cancelled frame would have sent
+      try { target.releasePointerCapture(pointerId); } catch { /* already released */ }
     };
     document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", () => {
-      document.removeEventListener("pointermove", onMove);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    }, { once: true });
+    document.addEventListener("pointerup", finish);
+    document.addEventListener("pointercancel", finish);
   }, []);
 
   // Resize handle
-  const handleResizeStart = useCallback(async (e: React.PointerEvent) => {
+  const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const { width: initW, height: initH } = await getCurrentWindow().outerSize();
+    const target = e.target as HTMLElement;
+    const pointerId = e.pointerId;
     const startX = e.screenX;
     const startY = e.screenY;
     const dpr = window.devicePixelRatio || 1;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    let initSize: { width: number; height: number } | null = null;
+    getCurrentWindow().outerSize().then((s) => { initSize = s; }).catch(() => {});
+    try { target.setPointerCapture(pointerId); } catch { /* target may be gone */ }
+    const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
     const onMove = (ev: PointerEvent) => {
-      const newW = Math.max(Math.round(280 * dpr), Math.round(initW + (ev.screenX - startX) * dpr));
-      const newH = Math.max(Math.round(520 * dpr), Math.round(initH + (ev.screenY - startY) * dpr));
+      if (!initSize) return;
+      const newW = Math.round(clamp(initSize.width  + (ev.screenX - startX) * dpr, MIN_W * dpr, MAX_W * dpr));
+      const newH = Math.round(clamp(initSize.height + (ev.screenY - startY) * dpr, MIN_H * dpr, MAX_H * dpr));
       invoke("resize_window", { width: newW, height: newH }).catch(() => {});
     };
+    const finish = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", finish);
+      document.removeEventListener("pointercancel", finish);
+      try { target.releasePointerCapture(pointerId); } catch { /* already released */ }
+    };
     document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", () => document.removeEventListener("pointermove", onMove), { once: true });
+    document.addEventListener("pointerup", finish);
+    document.addEventListener("pointercancel", finish);
   }, []);
 
   const privacyLabel = (id: "camera" | "mic", s: PrivacyState) => {
@@ -273,6 +328,15 @@ function MainView() {
     return a;
   });
   const hoveredAction = actions.find((a) => a.id === hovered);
+  const hoveredDeckKey = deckKeys.find((k) => hovered === `dk-${k.id}`);
+  const hoverInfo =
+    hovered === "quickadd"
+      ? "Pin an installed app or a website to the deck."
+      : hoveredDeckKey
+        ? hoveredDeckKey.kind === "url"
+          ? `Opens ${hoveredDeckKey.target} in your browser.`
+          : `Launches ${hoveredDeckKey.target}`
+        : hoveredAction?.description ?? "";
 
   return (
     <div
@@ -363,6 +427,45 @@ function MainView() {
                     <span className="btn-label">{a.label}</span>
                   </button>
                 ))}
+
+                {/* ── User-pinned deck keys (dynamic shortcuts) ── */}
+                {deckKeys.map((k) => (
+                  <button
+                    key={`dk-${k.id}`}
+                    className={["action-btn", pressed === `dk-${k.id}` ? "is-pressed" : ""].filter(Boolean).join(" ")}
+                    title={k.target}
+                    onPointerDown={() => setPressed(`dk-${k.id}`)}
+                    onPointerUp={() => { setPressed(null); launchDeckKey(k); }}
+                    onPointerLeave={() => setPressed(null)}
+                    onMouseEnter={() => setHovered(`dk-${k.id}`)}
+                    onMouseLeave={() => setHovered(null)}
+                  >
+                    <span className="btn-icon">
+                      {k.icon
+                        ? <img className="deckkey-img" src={k.icon} alt="" draggable={false} />
+                        : <Icon name={k.kind === "url" ? "shortcuts" : "file"} size={18} />}
+                    </span>
+                    <span className="btn-label">{k.label}</span>
+                  </button>
+                ))}
+
+                {/* ── Quick Add tile ── */}
+                <button
+                  className={[
+                    "action-btn",
+                    "action-btn--add",
+                    pressed === "quickadd" ? "is-pressed" : "",
+                    showQuickAdd ? "is-active" : "",
+                  ].filter(Boolean).join(" ")}
+                  onPointerDown={() => setPressed("quickadd")}
+                  onPointerUp={() => { setPressed(null); runCommand("quickadd"); }}
+                  onPointerLeave={() => setPressed(null)}
+                  onMouseEnter={() => setHovered("quickadd")}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <span className="btn-icon"><Icon name="plus" size={18} /></span>
+                  <span className="btn-label">Add Key</span>
+                </button>
               </div>
 
               {/* ── Snippets drawer ── */}
@@ -492,10 +595,19 @@ function MainView() {
                 />
               )}
 
+              {/* ── Quick Add drawer (pin apps / URLs to the deck) ── */}
+              {showQuickAdd && (
+                <QuickAddDrawer
+                  deckKeys={deckKeys}
+                  onChange={persistDeckKeys}
+                  showToast={showToast}
+                />
+              )}
+
               {/* ── Info bar (hover description) ── */}
-              {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && !showShortcuts && (
-                <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
-                  <span className="info-text">{hoveredAction?.description ?? ""}</span>
+              {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && !showShortcuts && !showQuickAdd && (
+                <div className={`info-bar${hoverInfo ? " info-bar--visible" : ""}`}>
+                  <span className="info-text">{hoverInfo}</span>
                 </div>
               )}
             </>
@@ -525,7 +637,7 @@ function MainView() {
         {/* ── Status bar ── */}
         <footer className="status-bar">
           <span className="status-beacon" />
-          <span className="status-copy">{actions.length} actions ready</span>
+          <span className="status-copy">{actions.length + deckKeys.length} actions ready</span>
         </footer>
 
         {/* ── Resize handle ── */}

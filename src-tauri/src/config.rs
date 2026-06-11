@@ -34,6 +34,39 @@ pub fn save_shortcuts(shortcuts: &[Shortcut]) {
     if let Ok(json) = serde_json::to_string(shortcuts) { let _ = fs::write(path, json); }
 }
 
+// ─── Deck Key (user-pinned app/URL shortcut on the main grid) ─────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct DeckKey {
+    pub id: String,
+    pub label: String,
+    /// Either an absolute .exe path or a URL.
+    pub target: String,
+    /// "app" | "url"
+    pub kind: String,
+    /// data:image/png;base64,… extracted from the exe / default browser ("" = none).
+    pub icon: String,
+}
+
+fn deck_keys_path() -> PathBuf {
+    let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
+    PathBuf::from(appdata).join("Desktop Deck").join("deck_keys.json")
+}
+
+pub fn load_deck_keys() -> Vec<DeckKey> {
+    let path = deck_keys_path();
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<DeckKey>>(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_deck_keys(keys: &[DeckKey]) {
+    let path = deck_keys_path();
+    if let Some(p) = path.parent() { let _ = fs::create_dir_all(p); }
+    if let Ok(json) = serde_json::to_string(keys) { let _ = fs::write(path, json); }
+}
+
 // ─── Snippet ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]

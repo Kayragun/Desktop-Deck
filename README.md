@@ -1,6 +1,6 @@
 # Desktop Deck
 
-A lightweight, always-on-desktop widget for Windows — inspired by Stream Deck. Quick-access buttons for system tools, automations, and productivity modules, living permanently on your desktop without cluttering the taskbar.
+A lightweight, always-on-desktop widget for Windows — inspired by Stream Deck. Quick-access keys for system tools, automations, and productivity modules, living permanently on your desktop without cluttering the taskbar.
 
 Built with **Rust + Tauri v2** (backend) and **React + TypeScript** (frontend). Designed from the ground up to consume minimal CPU and RAM.
 
@@ -8,36 +8,63 @@ Built with **Rust + Tauri v2** (backend) and **React + TypeScript** (frontend). 
 
 ## What it does
 
-Desktop Deck sits on your desktop as a floating panel. It stays behind all open windows (never covers your work), becomes nearly invisible when you're not using it, and snaps back to full opacity the moment you hover over it. You can drag it anywhere on screen, and it remembers its position across reboots.
+Desktop Deck sits on your desktop as a floating glass panel. It stays behind all open windows (never covers your work), becomes nearly invisible when you're not using it, and snaps back to full opacity the moment you hover over it. You can drag it anywhere on screen, resize it, and it remembers its position across reboots.
 
-It gives you one-click access to the actions you reach for most — clearing RAM, emptying the recycle bin, muting your mic, projecting your display — without opening any menus or switching windows. It also includes more advanced productivity modules: sticky notes that float on the desktop, a file staging area, an image converter, a text snippets library, and a decision maker.
+It gives you one-click access to the actions you reach for most — clearing RAM, emptying the recycle bin, blocking your mic or camera, projecting your display — without opening any menus or switching windows. A live instrument rail across the top reads out **CPU / GPU / RAM** usage, and you can pin your own apps and websites to the deck as custom keys.
+
+---
+
+## Design
+
+The UI follows a custom **black-first design system**: translucent near-black glass panels with a single **cobalt blue (`#3b76f5`)** accent, hairline borders, and tactile keycaps that lift on hover and dip on press.
+
+- **Custom monoline icon set** — every key uses a hand-built 24×24 icon (1.7&nbsp;px stroke, round caps), drawn in one coherent family. No emoji, no icon fonts. The full set lives in `src/Icon.tsx` (`ICON_PATHS`).
+- **Live gauge colors** — CPU/GPU/RAM bars recolor by load: green ≤ 50%, amber 51–80%, red > 80%.
+- **Dynamic icons** — the Task Manager key renders its live CPU percentage inside the chip glyph, recolored by load.
+- Design tokens (colors, typography, spacing, effects) live in `src/styles/tokens/`.
 
 ---
 
 ## Features
 
 ### Always-on-Desktop Behavior
-- Pinned to the bottom of the Windows Z-order via `SetWindowPos(HWND_BOTTOM)` — it never floats above your open applications
+- Pinned to the bottom of the Windows Z-order and attached to the desktop layer (`WorkerW`/`Progman`) — it never floats above your open applications
 - Fullscreen applications (games, videos) cover it completely
 - Touchpad gestures like **3-finger swipe down** (Show Desktop) do not minimize or disturb it
 - Does **not** appear in the Windows taskbar — managed exclusively from the system tray
 
-### Transparency Mode
-- **Idle:** Adjustable opacity (default 20%) — visible but non-intrusive
-- **Hover:** 100% opacity — fully visible when you need it
-- Idle opacity is adjustable live via the slider in the widget header
-- Transition is instant; no animation delay
+### System Monitor Rail
+- Live **CPU**, **GPU**, and **RAM** usage bars across the top of the panel, updated every 2 seconds
+- Bars and percentages recolor by load (green / amber / red)
+- The rail doubles as a drag handle for moving the widget
 
-### Drag & Position Memory
-- Grab the **header bar** to drag the widget anywhere on screen
-- Position is saved automatically to `%APPDATA%\Desktop Deck\config.json`
-- On next launch, the widget appears exactly where you left it
+### Transparency Mode
+- **Idle:** adjustable opacity (default 25%, range 25–80%) — visible but non-intrusive
+- **Hover:** 100% opacity — fully visible when you need it
+- Adjust live via the slider above the status bar
+
+### Drag, Resize & Position Memory
+- Grab the **header bar** or the **monitor rail** to drag the widget anywhere on screen
+- Drag the **bottom-right handle** to resize, between 350×580 and 640×960 logical pixels — widening the panel adds key columns, flowing from the top-left
+- Position is saved automatically to `%APPDATA%\Desktop Deck\config.json` and restored on next launch
+
+### Custom Deck Keys (Add Key)
+- The dashed **Add Key** tile at the end of the grid pins your own shortcuts to the deck:
+  - **Apps** — searches your Start Menu, lists installed applications, and extracts each app's real icon automatically
+  - **URLs** — pins any website; the key picks up your default browser's icon
+- Keys persist in `%APPDATA%\Desktop Deck\deck_keys.json` and launch their target with one click
+
+### Edit Mode
+- The **pencil button** in the header (next to ×) toggles edit mode:
+  - **Click a key** to hide it from the deck or bring it back — hidden keys stay in the edit grid, dimmed with a dashed border and an eye-off badge
+  - **Drag a key** to rearrange the grid (also works outside edit mode — hold and drag ~6&nbsp;px)
+- Key order and hidden keys persist across restarts
+- The status bar counts what's live: `15 actions ready · 1 hidden`
 
 ### System Tray Control
 - Right-click the tray icon to access the menu:
   - **Show / Hide** — toggle widget visibility
   - **Quit** — quit the application (saves position before exit)
-- The widget can be hidden when you don't need it and restored from the tray at any time
 
 ### Auto-Start with Windows
 - Registers itself in the Windows startup registry on first run
@@ -46,32 +73,39 @@ It gives you one-click access to the actions you reach for most — clearing RAM
 
 ---
 
-## Action Buttons
+## Action Keys
 
-The widget has 12 action buttons. Each opens a focused tool or triggers a single system operation with a press animation.
+The deck ships with 16 built-in keys plus your own pinned apps and URLs. Each key shows a monoline icon with a short label; hovering shows a one-line description in the info bar.
 
-| Button | Icon | Description |
+| Key | Icon (`Icon.tsx`) | Description |
 |---|---|---|
-| **Recycle Bin** | 🗑️ | Empties the Windows Recycle Bin |
-| **New Folder** | 📁 | Creates a new empty folder on the Desktop instantly |
-| **Clipboard** | 📋 | Wipes the entire Windows clipboard history |
-| **Display** | 🖥️ | Opens the Windows display projection panel (Win+P equivalent) |
-| **Panic** | 🔕 | Minimizes all open windows and mutes system volume simultaneously |
-| **Mic Off** | 🎤 | Toggles a system-level microphone kill-switch |
-| **RAM Flush** | 💾 | Clears background memory cache to free up RAM |
-| **Cleaner** | 🧹 | Keyboard & touchpad cleaner mode — disables input for physical cleaning; click Stop or wait 60 s to exit |
-| **Snippets** | ✂️ | Clipboard shortcuts for frequently typed text (IBAN, email, code blocks, etc.) |
-| **Decision** | 🎲 | Can't decide? Flip a coin, roll a dice, or spin a wheel |
-| **Sticky Notes** | 📝 | Floating sticky notes pinned to the desktop — each note is draggable, resizable, with adjustable opacity and font size |
-| **Drop Zone** | 📥 | Temporary file staging area — drag files in, open, copy path, show in Explorer, or drag them out |
-| **Converter** | 🔄 | Drag image files onto it, pick a target format (PNG / JPG / WEBP / BMP), choose an output folder, and convert in bulk |
+| **Recycle Bin** | `recycle` | Empties the Windows Recycle Bin (with confirmation) |
+| **New Folder** | `folder` | Creates a new empty folder on the Desktop instantly |
+| **Clipboard** | `clipboard` | Wipes the entire Windows clipboard — useful after copying sensitive data |
+| **Display** | `display` | Opens the Windows display projection panel (Win+P equivalent) |
+| **Panic** | `panic` | Minimizes all open windows and mutes system volume simultaneously |
+| **Camera** | `camera` | OS-level camera kill-switch — blocks all apps; shows **No Camera** if no device exists |
+| **Mic On / Mic Off** | `mic` | OS-level microphone kill-switch — the key turns red while blocked |
+| **RAM Flush** | `ram` | Flushes working-set memory across processes to free up RAM |
+| **Task Manager** | `cpu` (dynamic) | Live CPU % rendered inside the icon, recolored by load; click to open Task Manager |
+| **Snippets** | `snippets` | Clipboard shortcuts for frequently typed text (IBAN, email, code blocks) |
+| **Cleaner** | `cleaner` | Locks the keyboard for physical cleaning; click Stop or wait 60&nbsp;s to exit |
+| **Decision** | `decision` | Flip a coin, roll a dice, or spin a customizable wheel |
+| **Sticky Notes** | `sticky` | Floating notes pinned to the desktop — draggable, resizable, per-note opacity and font size |
+| **Drop Zone** | `dropzone` | Temporary file staging area — drag files in, open, copy path, reveal in Explorer |
+| **Converter** | `converter` | Converts images between PNG / JPG / WEBP / BMP in bulk |
+| **Shortcuts** | `shortcuts` | Launches websites, apps, or Windows settings with one click |
+| **Add Key** | `plus` | Pins an installed app or a website to the deck as a new key |
 
 ---
 
 ## Module Details
 
 ### Snippets
-Define your own text snippets (IBAN, email addresses, code templates, etc.). Click a snippet to copy it to the clipboard instantly. Snippets are stored in `%APPDATA%\Desktop Deck\snippets.json`.
+Define your own text snippets (IBAN, email addresses, code templates, etc.). Click a snippet to copy it to the clipboard instantly. Managed inline via the gear button; stored in `%APPDATA%\Desktop Deck\snippets.json`.
+
+### Shortcuts
+A drawer of one-click launchers: websites (`https://…`), executables, or Windows settings URIs (`ms-settings:…`). Add, edit, and remove them from the drawer's settings view. Stored in `%APPDATA%\Desktop Deck\shortcuts.json`.
 
 ### Decision Maker
 Three modes accessible via tabs:
@@ -87,7 +121,7 @@ Create notes in up to 5 colors. Each note can be:
 - **Font size** adjustable per note (9–20 px)
 - **Opacity** adjustable per note (25–100%)
 
-Settings (font size + opacity) are accessed via the pencil (✎) button in the note footer. All settings are persisted per note in `%APPDATA%\Desktop Deck\notes.json`.
+Settings are accessed via the pencil button in the note footer. All settings are persisted per note in `%APPDATA%\Desktop Deck\notes.json`.
 
 ### Drop Zone
 A file staging area inside the widget. Drag any file onto the panel while the Drop Zone drawer is open:
@@ -99,7 +133,10 @@ A file staging area inside the widget. Drag any file onto the panel while the Dr
 Files are kept in the list as long as the app is running (survive drawer open/close).
 
 ### Quick File Converter
-Drag image files (PNG, JPG, JPEG, WEBP, BMP) onto the converter area. Pick a target format, click **Convert**, choose an output folder via the native Windows folder picker, and all files are converted in one go. Status per file (pending / converting / done / error) is shown in the list. Conversion is done entirely in Rust via the `image` crate — no external tools required.
+Drag image files (PNG, JPG, JPEG, WEBP, BMP) onto the converter area. Pick a target format, click **Convert**, choose an output folder via the native Windows folder picker, and all files are converted in one go. Conversion is done entirely in Rust via the `image` crate — no external tools required.
+
+### Mic / Camera Kill-Switch
+Privacy toggles backed by the Windows consent store (OS-level, not per-app). While blocked, **no application** can access the device. The key shows the live state — polled every 4 seconds — and turns red when blocked. If no device exists, the key is disabled and labeled `No Camera` / `No Mic`.
 
 ---
 
@@ -112,11 +149,11 @@ Drag image files (PNG, JPG, JPEG, WEBP, BMP) onto the converter area. Pick a tar
 | Frontend library | React | 18 |
 | Language | TypeScript | 5 |
 | Frontend build tool | Vite | 5 |
-| Styling | Plain CSS | — |
+| Styling | Plain CSS + design tokens | — |
 | Package manager | npm | — |
-| Windows API | Win32 via `extern "system"` FFI | — |
+| Windows API | Win32 via `extern "system"` FFI + `windows` crate | — |
 | Image processing | `image` crate (pure Rust) | 0.25 |
-| Config storage | JSON file | `%APPDATA%\Desktop Deck\` |
+| Config storage | JSON files | `%APPDATA%\Desktop Deck\` |
 
 ### Tools & Programs Used
 
@@ -170,11 +207,14 @@ Desktop Deck is open source. The codebase is intentionally straightforward — y
 
 **Common customizations:**
 
-- **Add or remove action buttons** — edit the `STATIC_ACTIONS` array in `src/App.tsx`. The grid layout adjusts automatically.
-- **Change what a button does** — add a Tauri command in `src-tauri/src/commands.rs` and call it from the button's handler in `App.tsx` via `invoke()`.
-- **Adjust idle opacity** — drag the opacity slider in the widget header, or change the default in `App.tsx`.
-- **Resize the widget** — edit `width` and `height` in `src-tauri/tauri.conf.json` under the `windows` array.
-- **Change config save path** — edit `config.rs`.
+- **Pin your own keys** — no code needed: click **Add Key** in the widget and pick an app or enter a URL.
+- **Hide, show, and reorder keys** — no code needed: use the pencil (edit mode) button in the header, or hold-and-drag any key.
+- **Add or remove built-in actions** — edit the `STATIC_ACTIONS` array in `src/App.tsx`. The grid layout adjusts automatically.
+- **Add a new icon** — add a 24×24 monoline path to `ICON_PATHS` in `src/Icon.tsx`, matching the 1.7&nbsp;px stroke / round-cap language of the set.
+- **Change what a key does** — add a Tauri command in `src-tauri/src/commands.rs` and call it from the key's handler in `App.tsx` via `invoke()`.
+- **Adjust idle opacity** — drag the opacity slider in the widget, or change the default in `App.tsx`.
+- **Change size limits** — edit `MIN_W` / `MAX_W` etc. in `src/App.tsx` and the matching clamps in `resize_window` (`src-tauri/src/commands.rs`).
+- **Restyle the theme** — edit the design tokens in `src/styles/tokens/` (colors, typography, spacing, effects).
 - **Add a new system action** — write a Win32 call in Rust, expose it with `#[tauri::command]`, register it in `invoke_handler![]`, and call it from the frontend with `invoke()`.
 
 ---
@@ -184,21 +224,27 @@ Desktop Deck is open source. The codebase is intentionally straightforward — y
 ```
 Desktop Deck/
 ├── src/                              # React frontend
-│   ├── App.tsx                       # Main widget UI, action buttons, state
-│   ├── SnippetsDrawer.tsx            # Text snippets module
+│   ├── App.tsx                       # Main widget UI, deck grid, edit mode, drag/resize
+│   ├── Icon.tsx                      # Custom monoline icon set (ICON_PATHS)
+│   ├── QuickAddDrawer.tsx            # Add Key drawer — pin installed apps / URLs
+│   ├── ShortcutsDrawer.tsx           # One-click launcher list
 │   ├── StickyNotesDrawer.tsx         # Sticky notes list and management
-│   ├── NoteWindow.tsx                # Floating desktop note window
+│   ├── NoteWindow.tsx                # Floating desktop note window UI
+│   ├── note.tsx                      # Entry point for the note window
 │   ├── DecisionDrawer.tsx            # Coin / dice / wheel decision maker
 │   ├── DropZoneDrawer.tsx            # File staging area
 │   ├── FileConverterDrawer.tsx       # Image format converter
-│   └── styles/global.css            # All widget styles
+│   └── styles/
+│       ├── global.css                # All widget styles
+│       └── tokens/                   # Design tokens (colors, type, spacing, effects)
 ├── src-tauri/
 │   ├── src/
 │   │   ├── main.rs                   # Tauri setup, tray, window pinning, event handling
-│   │   ├── commands.rs               # All Tauri commands (system + notes + converter)
-│   │   ├── config.rs                 # Position and notes save/load (%APPDATA%)
+│   │   ├── commands.rs               # Tauri commands (system, notes, converter, sysmon)
+│   │   ├── deckkeys.rs               # Installed-app scan, icon extraction, deck key storage
+│   │   ├── config.rs                 # Position / snippets / shortcuts / notes persistence
 │   │   ├── cleaner.rs                # Keyboard/touchpad cleaner mode
-│   │   ├── desktop.rs                # Win32 desktop attach helpers
+│   │   ├── desktop.rs                # Win32 desktop-layer attach (WorkerW/Progman)
 │   │   └── autostart.rs              # Windows startup registry
 │   ├── icons/                        # App and tray icons
 │   └── tauri.conf.json               # Window config (size, decorations, transparency)

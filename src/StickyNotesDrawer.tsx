@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 interface Note {
   id: string;
@@ -17,7 +18,7 @@ interface Props {
 const NOTE_COLORS: Record<string, string> = {
   yellow: "#fbbf24",
   green:  "#34d399",
-  purple: "#7c6af7",
+  purple: "#3b76f5",
   pink:   "#f472b6",
   slate:  "#94a3b8",
 };
@@ -110,7 +111,8 @@ export function StickyNotesDrawer({ showToast }: Props) {
       <div className="snippets-eyebrow-row">
         <span className="snippets-eyebrow">Sticky Notes</span>
         <button className="snippets-settings-btn" onPointerUp={(e) => { e.stopPropagation(); toggleAdd(); }}>
-          {adding ? "✕ İptal" : "+ Ekle"}
+          {adding ? <Icon name="close" size={9} /> : <Icon name="plus" size={9} />}
+          {adding ? " İptal" : " Ekle"}
         </button>
       </div>
 
@@ -168,8 +170,8 @@ export function StickyNotesDrawer({ showToast }: Props) {
                   rows={3}
                 />
                 <div className="sticky-edit-footer">
-                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>✓ Save</button>
-                  <button className="sticky-edit-cancel" onPointerUp={(e) => { e.stopPropagation(); setEditing(null); }}>✕</button>
+                  <button className="sticky-edit-save" onPointerUp={(e) => { e.stopPropagation(); saveEdit(note.id); }}>Save</button>
+                  <button className="sticky-edit-cancel" onPointerUp={(e) => { e.stopPropagation(); setEditing(null); }}>Cancel</button>
                 </div>
               </>
             ) : (
@@ -182,14 +184,14 @@ export function StickyNotesDrawer({ showToast }: Props) {
                     title={desktopNotes.has(note.id) ? "Masaüstünden kaldır" : "Masaüstüne ekle"}
                     onPointerUp={(e) => { e.stopPropagation(); toggleDesktop(note); }}
                   >
-                    {desktopNotes.has(note.id) ? "📌" : "📍"}
+                    <Icon name="pin" size={10} />
                   </button>
                   <button
                     className="sticky-delete-btn"
                     title="Notu sil"
                     onPointerUp={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                   >
-                    ✕
+                    <Icon name="close" size={9} />
                   </button>
                 </div>
               </>

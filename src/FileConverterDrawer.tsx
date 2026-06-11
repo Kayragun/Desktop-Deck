@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 type TargetFmt = "png" | "jpg" | "webp" | "bmp";
 type FileStatus = "pending" | "converting" | "done" | "error";
@@ -132,7 +133,7 @@ export function FileConverterDrawer({ showToast }: Props) {
       ].filter(Boolean).join(" ")}>
         {!hasFiles ? (
           <div className="fc-empty">
-            <span className="fc-drop-icon">🖼️</span>
+            <span className="fc-drop-icon"><Icon name="image" size={16} /></span>
             <span className="fc-hint">{isDragging ? "Release to add" : "Drop images here"}</span>
           </div>
         ) : (
@@ -140,9 +141,9 @@ export function FileConverterDrawer({ showToast }: Props) {
             {files.map(f => (
               <div key={f.path} className={`fc-row fc-row--${f.status}`} title={f.error}>
                 <span className="fc-status-icon">
-                  {f.status === "done"       ? "✓"
-                  : f.status === "error"     ? "✗"
-                  : f.status === "converting"? "⟳"
+                  {f.status === "done"       ? <Icon name="check" size={9} />
+                  : f.status === "error"     ? <Icon name="close" size={9} />
+                  : f.status === "converting"? <Icon name="converter" size={9} />
                   : "·"}
                 </span>
                 <span className="fc-name" title={f.path}>{f.name}</span>
@@ -163,7 +164,7 @@ export function FileConverterDrawer({ showToast }: Props) {
           {isConverting
             ? "Converting…"
             : convertable.length === 0
-              ? "All done ✓"
+              ? "All done"
               : `Convert ${convertable.length} file${convertable.length !== 1 ? "s" : ""}`}
         </button>
       )}

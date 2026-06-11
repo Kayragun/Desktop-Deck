@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Icon } from "./Icon";
 
 export interface Shortcut {
   id: string;
@@ -34,7 +35,7 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
         id: Date.now().toString(),
         label: newLabel.trim(),
         target: newTarget.trim(),
-        icon: "🔗",
+        icon: "shortcuts",
       },
     ]);
     setNewLabel("");
@@ -51,13 +52,14 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
             className="snippets-settings-btn"
             onPointerUp={() => { setShowSettings(false); setEditMode(false); }}
           >
-            ← Back
+            <Icon name="back" size={9} /> Back
           </button>
           <button
             className={`snippets-settings-btn${editMode ? " is-edit-active" : ""}`}
             onPointerUp={() => setEditMode((v) => !v)}
           >
-            {editMode ? "✓ Done" : "✏ Edit"}
+            {editMode ? <Icon name="check" size={9} /> : <Icon name="pencil" size={9} />}
+            {editMode ? " Done" : " Edit"}
           </button>
         </div>
 
@@ -74,7 +76,7 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
                   className="settings-delete-btn"
                   onPointerUp={(e) => { e.stopPropagation(); remove(s.id); }}
                 >
-                  ✕
+                  <Icon name="close" size={9} />
                 </button>
               )}
             </div>
@@ -97,7 +99,7 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
             onKeyDown={(e) => e.key === "Enter" && add()}
           />
           <button className="settings-add-btn" onPointerUp={add}>
-            + Add
+            <Icon name="plus" size={9} /> Add
           </button>
         </div>
       </div>
@@ -113,12 +115,12 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
           onPointerUp={() => setShowSettings(true)}
           title="Manage shortcuts"
         >
-          ⚙
+          <Icon name="gear" size={10} />
         </button>
       </div>
 
       {shortcuts.length === 0 && (
-        <p className="snippet-empty">No shortcuts yet — click ⚙ to add one.</p>
+        <p className="snippet-empty">No shortcuts yet — open settings to add one.</p>
       )}
 
       {shortcuts.length > 0 && (
@@ -130,7 +132,7 @@ export function ShortcutsDrawer({ shortcuts, onChange, showToast }: Props) {
               onPointerUp={() => launch(s)}
               title={s.label}
             >
-              <span className="sc-icon">🔗</span>
+              <span className="sc-icon"><Icon name="shortcuts" size={16} /></span>
               <span className="sc-label">{s.label}</span>
             </button>
           ))}

@@ -1,0 +1,65 @@
+/* ═══════════════════════════════════════════════════════
+   Desktop Deck — Effects: shadow, glass, glow, motion
+   The widget reads as a milled instrument: glass blur,
+   inner gloss, hairline bevels, snappy motion.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Glass (backdrop blur on the panel) ──────────────*/
+  --dd-glass-blur:  blur(22px) saturate(170%);   /* @kind other */
+
+  /* ── Elevation shadows ───────────────────────────────*/
+  --dd-shadow-panel:
+    0 0 0 0.5px rgba(0, 0, 0, 0.55),
+    0 10px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --dd-shadow-tile:
+    inset 0  1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+
+  --dd-shadow-tile-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 0 1px rgba(59, 118, 245, 0.12),
+    0 4px 20px rgba(59, 118, 245, 0.34),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+
+  --dd-shadow-tile-pressed:
+    inset 0 2px 5px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0   rgba(0, 0, 0, 0.12);
+
+  --dd-shadow-pop:
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.18);
+
+  /* ── Glows ───────────────────────────────────────────*/
+  --dd-glow-accent: 0 0 10px var(--dd-accent-glow), 0 2px 4px rgba(0, 0, 0, 0.30);
+  --dd-glow-beacon: 0 0 6px rgba(61, 220, 143, 0.55);
+
+  /* ── Bevels / sheens ─────────────────────────────────
+     Layered atop tiles for the "milled key" look.        */
+  --dd-sheen-top: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.055) 0%, transparent 100%);   /* @kind other */
+  --dd-ambient-accent: radial-gradient(
+    ellipse 70% 45% at 50% -8%,
+    rgba(59, 118, 245, 0.06) 0%, transparent 100%);   /* @kind other */
+
+  /* ── Scanline micro-texture (material depth) ─────────*/
+  --dd-scanlines: repeating-linear-gradient(
+    0deg, transparent 0px, transparent 2px,
+    rgba(255, 255, 255, 0.007) 2px, rgba(255, 255, 255, 0.007) 4px);   /* @kind other */
+
+  /* ── Motion ──────────────────────────────────────────*/
+  --dd-ease-snap: cubic-bezier(0.25, 1, 0.5, 1);  /* @kind other */
+  --dd-ease-out:  cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --dd-dur-fast:    55ms;    /* @kind other */
+  --dd-dur-base:    140ms;   /* @kind other */
+  --dd-dur-drawer:  180ms;   /* @kind other */
+  --dd-dur-panel:   360ms;   /* @kind other */
+  --dd-dur-gauge:   700ms;   /* @kind other */
+
+  /* ── Idle transparency (signature behavior) ──────────
+     The widget fades to translucent when idle, returns
+     to full opacity on hover.                            */
+  --dd-idle-opacity: 0.25;   /* @kind other */
+}

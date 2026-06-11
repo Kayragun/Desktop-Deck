@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Icon } from "./Icon";
 
 interface Note {
   id: string;
@@ -17,7 +18,7 @@ interface Note {
 const NOTE_COLORS: Record<string, string> = {
   yellow: "#fbbf24",
   green:  "#34d399",
-  purple: "#7c6af7",
+  purple: "#3b76f5",
   pink:   "#f472b6",
   slate:  "#94a3b8",
 };
@@ -184,7 +185,7 @@ export function NoteWindow() {
               }}
             />
             <div className="nw-edit-row">
-              <button className="nw-save-btn" onPointerUp={(e) => { e.stopPropagation(); handleSaveEdit(); }}>✓ Save</button>
+              <button className="nw-save-btn" onPointerUp={(e) => { e.stopPropagation(); handleSaveEdit(); }}>Save</button>
               <button className="nw-cancel-btn" onPointerUp={(e) => { e.stopPropagation(); setEditing(false); }}>Cancel</button>
             </div>
           </>
@@ -213,10 +214,10 @@ export function NoteWindow() {
               className="nw-settings-done"
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); }}
-            >✓</button>
+            ><Icon name="check" size={10} /></button>
           </div>
           <div className="nw-settings-row">
-            <span className="nw-settings-label">◑</span>
+            <span className="nw-settings-label"><Icon name="opacity" size={10} /></span>
             <input
               type="range"
               className="nw-opacity-slider"
@@ -240,7 +241,7 @@ export function NoteWindow() {
           onPointerUp={(e) => { e.stopPropagation(); setShowSettings(v => !v); }}
           title="Appearance settings"
         >
-          ✎
+          <Icon name="pencil" size={11} />
         </button>
       </div>
 

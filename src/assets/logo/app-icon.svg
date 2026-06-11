@@ -1,0 +1,41 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Desktop Deck app icon">
+  <defs>
+    <linearGradient id="dd-bg" x1="256" y1="0" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#15151f"></stop>
+      <stop offset="0.55" stop-color="#0c0c14"></stop>
+      <stop offset="1" stop-color="#07070d"></stop>
+    </linearGradient>
+    <radialGradient id="dd-amb" cx="0.5" cy="0.05" r="0.75">
+      <stop offset="0" stop-color="#3b76f5" stop-opacity="0.30"></stop>
+      <stop offset="1" stop-color="#3b76f5" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="dd-key" x1="268" y1="132" x2="380" y2="244" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6f9bff"></stop>
+      <stop offset="0.5" stop-color="#3b76f5"></stop>
+      <stop offset="1" stop-color="#2050cf"></stop>
+    </linearGradient>
+    <filter id="dd-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="14" result="b"></feGaussianBlur>
+      <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+
+  
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#dd-bg)"></rect>
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#dd-amb)"></rect>
+  <rect x="1" y="1" width="510" height="510" rx="115" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="2"></rect>
+
+  
+  
+  <rect x="132" y="132" width="112" height="112" rx="30" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"></rect>
+  <rect x="132" y="268" width="112" height="112" rx="30" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"></rect>
+  <rect x="268" y="268" width="112" height="112" rx="30" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"></rect>
+
+  
+  <g filter="url(#dd-glow)">
+    <rect x="268" y="132" width="112" height="112" rx="30" fill="url(#dd-key)"></rect>
+  </g>
+  
+  <rect x="268" y="132" width="112" height="56" rx="30" fill="#ffffff" fill-opacity="0.16"></rect>
+  <rect x="268" y="133" width="112" height="110" rx="29" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5"></rect>
+</svg>

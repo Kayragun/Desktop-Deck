@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Icon } from "./Icon";
 
 interface Props {
   showToast: (msg: string, ok: boolean) => void;
@@ -6,9 +7,10 @@ interface Props {
 
 type Mode = "menu" | "coin" | "dice" | "wheel";
 
+// Cobalt-family wheel palette — alternating depth so adjacent slices read apart.
 const WHEEL_COLORS = [
-  "#7c6af7","#5851d8","#9d8cf5","#4a3fa0",
-  "#c4b8ff","#6366f1","#a78bfa","#818cf8",
+  "#3b76f5","#1f4fd0","#9db9ff","#2d3e7c",
+  "#6f9bff","#4663d8","#c3d3ff","#3551b0",
 ];
 
 // Pip grid: 3×3 positions [left%, top%]
@@ -91,7 +93,7 @@ export function DecisionDrawer({ showToast }: Props) {
     setTimeout(() => {
       setCoinFace(result);
       setCoinFlipping(false);
-      showToast(`🪙 ${result === "H" ? "Heads!" : "Tails!"}`, true);
+      showToast(result === "H" ? "Heads" : "Tails", true);
     }, 1400);
   }, [coinFlipping, coinRotation, showToast]);
 
@@ -109,7 +111,7 @@ export function DecisionDrawer({ showToast }: Props) {
         setDiceDisplay(result);
         setDiceRolled(true);
         setDiceRolling(false);
-        showToast(`🎲 ${result + 1}`, true);
+        showToast(`Rolled ${result + 1}`, true);
       }
     }, 75);
   }, [diceRolling, showToast]);
@@ -230,7 +232,7 @@ export function DecisionDrawer({ showToast }: Props) {
         const winner       = items[winnerIdx];
         setWheelResult(winner);
         setWheelSpinning(false);
-        showToast(`🎯 ${winner}`, true);
+        showToast(`Winner: ${winner}`, true);
       }
     };
 
@@ -256,7 +258,9 @@ export function DecisionDrawer({ showToast }: Props) {
       <div className="decision-eyebrow-row">
         <p className="decision-eyebrow">Decision Maker</p>
         {mode !== "menu" && (
-          <button className="decision-back-btn" onPointerUp={() => goTo("menu")}>← Back</button>
+          <button className="decision-back-btn" onPointerUp={() => goTo("menu")}>
+            <Icon name="back" size={9} /> Back
+          </button>
         )}
       </div>
 
@@ -264,15 +268,15 @@ export function DecisionDrawer({ showToast }: Props) {
       {mode === "menu" && (
         <div className="decision-choices">
           <button className="decision-choice" onPointerUp={() => goTo("coin")}>
-            <span className="decision-choice-icon">🪙</span>
+            <span className="decision-choice-icon"><Icon name="coin" size={20} /></span>
             <span className="decision-choice-label">Coin Flip</span>
           </button>
           <button className="decision-choice" onPointerUp={() => goTo("dice")}>
-            <span className="decision-choice-icon">🎲</span>
+            <span className="decision-choice-icon"><Icon name="decision" size={20} /></span>
             <span className="decision-choice-label">Roll Dice</span>
           </button>
           <button className="decision-choice decision-choice--wide" onPointerUp={() => goTo("wheel")}>
-            <span className="decision-choice-icon">🎡</span>
+            <span className="decision-choice-icon"><Icon name="wheel" size={20} /></span>
             <span className="decision-choice-label">Spin Wheel</span>
           </button>
         </div>
@@ -305,7 +309,7 @@ export function DecisionDrawer({ showToast }: Props) {
         <div className="decision-dice-area">
           <div className="dice-perspective">
             {!diceRolled && !diceRolling ? (
-              <div className="dice-box dice-idle">🎲</div>
+              <div className="dice-box dice-idle"><Icon name="decision" size={30} /></div>
             ) : (
               <DiceFace value={diceDisplay} rolling={diceRolling} />
             )}
@@ -323,7 +327,7 @@ export function DecisionDrawer({ showToast }: Props) {
             <canvas ref={canvasRef} />
           </div>
           {wheelResult && (
-            <p className="decision-result">🎯 {wheelResult}</p>
+            <p className="decision-result">{wheelResult}</p>
           )}
           <button
             className="decision-spin-btn"
@@ -337,7 +341,9 @@ export function DecisionDrawer({ showToast }: Props) {
               <div key={i} className="wheel-item-row">
                 <span className="wheel-dot" style={{ background: WHEEL_COLORS[i % WHEEL_COLORS.length] }} />
                 <span className="wheel-item-name">{item}</span>
-                <button className="wheel-remove-btn" onPointerUp={() => removeItem(i)}>✕</button>
+                <button className="wheel-remove-btn" onPointerUp={() => removeItem(i)}>
+                  <Icon name="close" size={8} />
+                </button>
               </div>
             ))}
           </div>
@@ -349,7 +355,9 @@ export function DecisionDrawer({ showToast }: Props) {
               onChange={e => setWheelInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addItem()}
             />
-            <button className="settings-add-btn" onPointerUp={addItem}>+</button>
+            <button className="settings-add-btn" onPointerUp={addItem}>
+              <Icon name="plus" size={10} />
+            </button>
           </div>
         </div>
       )}

@@ -1,0 +1,50 @@
+/* ═══════════════════════════════════════════════════════
+   Desktop Deck — Typography Tokens
+   Native system UI by design — the widget feels like part
+   of the OS. No webfont download; zero render cost.
+   A monospace ramp carries the numeric gauge readouts.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Families ────────────────────────────────────────*/
+  --dd-font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* System-mono stack — ui-monospace resolves to SF Mono / Cascadia / Consolas
+     per-OS. No webfont download. */
+  --dd-font-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  /* ── Type scale (px) — widget is compact; sizes are small by design ──
+     Never go below 8px on a real OS widget; cards & UI kit scale up.  */
+  --dd-text-2xs:  8px;    /* eyebrows, gauge labels, status copy   */
+  --dd-text-xs:   9px;    /* secondary captions, snippet values    */
+  --dd-text-sm:   10px;   /* button-group labels, toasts           */
+  --dd-text-base: 11px;   /* body, inputs, list rows               */
+  --dd-text-md:   12px;   /* brand name, dialog body               */
+  --dd-text-lg:   13px;   /* section titles, result text           */
+  --dd-text-xl:   14px;   /* settings-window title                 */
+  --dd-text-2xl:  18px;   /* drawer headings (UI kit / cards)      */
+  --dd-text-display: 40px;/* cleaner-mode countdown                */
+
+  /* ── Weights ─────────────────────────────────────────*/
+  --dd-weight-regular:  400;
+  --dd-weight-medium:   500;
+  --dd-weight-semibold: 600;
+  --dd-weight-bold:     700;
+  --dd-weight-heavy:    800;
+
+  /* ── Letter-spacing ──────────────────────────────────
+     Uppercase micro-labels are tracked open for legibility
+     at tiny sizes; display numerals are tightened.        */
+  --dd-track-eyebrow:  0.10em;   /* UPPERCASE eyebrows      */
+  --dd-track-label:    0.04em;   /* button / status labels  */
+  --dd-track-brand:    0.035em;  /* "Desktop Deck" wordmark */
+  --dd-track-tight:   -0.02em;   /* big numerals            */
+
+  /* ── Line-heights ────────────────────────────────────*/
+  --dd-leading-tight: 1.1;
+  --dd-leading-snug:  1.45;
+  --dd-leading-body:  1.6;
+
+  /* ── Semantic aliases ────────────────────────────────*/
+  --font-ui:   var(--dd-font-ui);
+  --font-mono: var(--dd-font-mono);
+}

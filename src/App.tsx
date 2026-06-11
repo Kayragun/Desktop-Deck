@@ -4,6 +4,7 @@ import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
 import { FileConverterDrawer } from "./FileConverterDrawer";
 import { ShortcutsDrawer, Shortcut } from "./ShortcutsDrawer";
+import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -42,7 +43,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "sticky",    label: "Sticky Notes", description: "Floating notes on your desktop. Drag, resize, adjust opacity and font size per note." },
   { id: "dropzone",  label: "Drop Zone",    description: "Drag files here to stage them temporarily. Open, copy path, or reveal in Explorer." },
   { id: "converter", label: "Converter",    description: "Convert images between PNG, JPG, WEBP and BMP formats. Drop images, pick output folder." },
-  { id: "shortcuts", label: "Shortcuts",    description: "Launch websites, apps, or Windows settings with one click. Click ⚙ to manage your shortcuts." },
+  { id: "shortcuts", label: "Shortcuts",    description: "Launch websites, apps, or Windows settings with one click. Manage them in settings." },
 ];
 
 export default function App() {
@@ -296,7 +297,7 @@ function MainView() {
         {/* ── Header ── */}
         <header className="panel-header" onPointerDown={handleDragStart}>
           <div className="header-brand">
-            <div className="brand-badge">D</div>
+            <div className="brand-badge"><Icon name="deck" size={14} /></div>
             <span className="brand-name">Desktop Deck</span>
           </div>
           <button
@@ -304,7 +305,7 @@ function MainView() {
             title="Hide panel"
             onPointerUp={(e) => { e.stopPropagation(); invoke("hide_window"); }}
           >
-            ×
+            <Icon name="close" size={12} />
           </button>
         </header>
 
@@ -316,7 +317,7 @@ function MainView() {
           {/* ── Cleaner mode overlay ── */}
           {cleanerActive ? (
             <div className="cleaner-overlay">
-              <div className="cleaner-icon">🧹</div>
+              <div className="cleaner-icon"><Icon name="cleaner" size={36} /></div>
               <p className="cleaner-title">Keyboard Locked</p>
               <p className="cleaner-hint">Click the button below to stop</p>
               <p className="cleaner-countdown">{cleanerSecs}s</p>
@@ -357,13 +358,7 @@ function MainView() {
                     onMouseLeave={() => setHovered(null)}
                   >
                     <span className="btn-icon">
-                      {a.id === "camera"
-                        ? <CameraIcon state={camState} />
-                        : a.id === "mic"
-                          ? <MicPrivacyIcon state={micState} />
-                          : a.id === "cpu"
-                            ? <CpuIcon usage={cpuUsage} />
-                            : BTN_ICONS[a.id]}
+                      {a.id === "cpu" ? <CpuIcon usage={cpuUsage} /> : BTN_ICONS[a.id]}
                     </span>
                     <span className="btn-label">{a.label}</span>
                   </button>
@@ -380,11 +375,11 @@ function MainView() {
                       title="Manage snippets"
                       onPointerUp={(e) => { e.stopPropagation(); setShowSettings(true); }}
                     >
-                      ⚙
+                      <Icon name="gear" size={10} />
                     </button>
                   </div>
                   {snippets.length === 0 && (
-                    <p className="snippet-empty">No snippets yet — click ⚙ to add one.</p>
+                    <p className="snippet-empty">No snippets yet — open settings to add one.</p>
                   )}
                   {snippets.map((s) => (
                     <button
@@ -413,13 +408,14 @@ function MainView() {
                       onPointerUp={(e) => { e.stopPropagation(); setShowSettings(false); setEditMode(false); }}
                       title="Back"
                     >
-                      ← Back
+                      <Icon name="back" size={9} /> Back
                     </button>
                     <button
                       className={`snippets-settings-btn${editMode ? " is-edit-active" : ""}`}
                       onPointerUp={(e) => { e.stopPropagation(); setEditMode((v) => !v); }}
                     >
-                      {editMode ? "✓ Done" : "✏ Edit"}
+                      {editMode ? <Icon name="check" size={9} /> : <Icon name="pencil" size={9} />}
+                      {editMode ? " Done" : " Edit"}
                     </button>
                   </div>
 
@@ -437,7 +433,7 @@ function MainView() {
                             onPointerUp={(e) => { e.stopPropagation(); deleteSnippet(s.id); }}
                             title="Delete"
                           >
-                            ✕
+                            <Icon name="close" size={9} />
                           </button>
                         )}
                       </div>
@@ -463,7 +459,7 @@ function MainView() {
                       className="settings-add-btn"
                       onPointerUp={(e) => { e.stopPropagation(); addSnippet(); }}
                     >
-                      + Add
+                      <Icon name="plus" size={9} /> Add
                     </button>
                   </div>
                 </div>
@@ -499,7 +495,6 @@ function MainView() {
               {/* ── Info bar (hover description) ── */}
               {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && !showShortcuts && (
                 <div className={`info-bar${hoveredAction ? " info-bar--visible" : ""}`}>
-                  <span className="info-icon">ℹ</span>
                   <span className="info-text">{hoveredAction?.description ?? ""}</span>
                 </div>
               )}
@@ -509,7 +504,7 @@ function MainView() {
 
         {/* ── Opacity control ── */}
         <div className="opacity-bar">
-          <span className="opacity-icon">◑</span>
+          <span className="opacity-icon"><Icon name="opacity" size={11} /></span>
           <input
             type="range"
             className="opacity-slider"
@@ -546,54 +541,22 @@ function MainView() {
 // ─── Button icons ─────────────────────────────────────────────────────────────
 
 const BTN_ICONS: Record<string, React.ReactNode> = {
-  recycle:   "🗑️",
-  folder:    "📁",
-  clipboard: "📋",
-  display:   "🖥️",
-  panic:     "🔕",
-  ram:       "💾",
-  snippets:  "✂️",
-  cleaner:   "🧹",
-  decision:  "🎯",
-  sticky:    "📝",
-  dropzone:  "📥",
-  converter: "🔄",
-  shortcuts: "⚡",
+  recycle:   <Icon name="recycle"   size={18} />,
+  folder:    <Icon name="folder"    size={18} />,
+  clipboard: <Icon name="clipboard" size={18} />,
+  display:   <Icon name="display"   size={18} />,
+  panic:     <Icon name="panic"     size={18} />,
+  ram:       <Icon name="ram"       size={18} />,
+  camera:    <Icon name="camera"    size={18} />,
+  mic:       <Icon name="mic"       size={18} />,
+  snippets:  <Icon name="snippets"  size={18} />,
+  cleaner:   <Icon name="cleaner"   size={18} />,
+  decision:  <Icon name="decision"  size={18} />,
+  sticky:    <Icon name="sticky"    size={18} />,
+  dropzone:  <Icon name="dropzone"  size={18} />,
+  converter: <Icon name="converter" size={18} />,
+  shortcuts: <Icon name="shortcuts" size={18} />,
 };
-
-// ─── SVG icon components ──────────────────────────────────────────────────────
-
-function CameraIcon({ state }: { state: PrivacyState }) {
-  const opacity = state === "no_device" ? 0.28 : 1;
-  const c = state === "denied" ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
-  return (
-    <svg width="16" height="14" viewBox="0 0 24 20" fill="none" aria-hidden style={{ display: "block", opacity }}>
-      <rect x="1" y="5" width="22" height="14" rx="3" fill={c} />
-      <circle cx="12" cy="12" r="4" fill={state === "denied" ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.35)"} />
-      <circle cx="12" cy="12" r="2.2" fill={state === "denied" ? "rgba(255,255,255,0.10)" : c} />
-      <path d="M8 5V3.5A1.5 1.5 0 0 1 9.5 2h5A1.5 1.5 0 0 1 16 3.5V5" stroke={c} strokeWidth="1.5" fill="none"/>
-      {state === "denied" && (
-        <line x1="3" y1="3" x2="21" y2="19" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
-      )}
-    </svg>
-  );
-}
-
-function MicPrivacyIcon({ state }: { state: PrivacyState }) {
-  const opacity = state === "no_device" ? 0.28 : 1;
-  const c = state === "denied" ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.88)";
-  return (
-    <svg width="14" height="16" viewBox="4 1 16 22" fill="none" aria-hidden style={{ display: "block", opacity }}>
-      <rect x="9" y="2" width="6" height="12" rx="3" fill={c} />
-      <path d="M5 11a7 7 0 0 0 14 0" stroke={c} strokeWidth="2" strokeLinecap="round" fill="none"/>
-      <line x1="12" y1="18" x2="12" y2="21" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      <line x1="8"  y1="21" x2="16" y2="21" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      {state === "denied" && (
-        <line x1="5" y1="4" x2="19" y2="20" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
-      )}
-    </svg>
-  );
-}
 
 // ─── System Monitor Strip ─────────────────────────────────────────────────────
 
@@ -614,11 +577,12 @@ function SysMonStrip({
   );
 }
 
+/** Map a 0–100 load value to its semantic gauge color. null = no data. */
 function gaugeColor(v: number | null): string {
-  if (v === null) return "rgba(255,255,255,0.20)";
-  if (v > 80) return "#ef4444";
-  if (v > 50) return "#f59e0b";
-  return "#4ade80";
+  if (v === null) return "var(--dd-gauge-idle)";
+  if (v > 80) return "var(--dd-gauge-crit)";
+  if (v > 50) return "var(--dd-gauge-warn)";
+  return "var(--dd-gauge-ok)";
 }
 
 function SysMonItem({ label, value, color }: { label: string; value: number | null; color: string }) {
@@ -634,40 +598,33 @@ function SysMonItem({ label, value, color }: { label: string; value: number | nu
   );
 }
 
+// The "dynamic icon" the spec calls for: the design-system CPU frame carrying
+// its live percentage, recolored by load.
 function CpuIcon({ usage }: { usage: number | null }) {
-  const pct = usage ?? 0;
-  const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#4ade80";
-  const label = usage !== null ? `${Math.round(pct)}` : "--";
+  const color = gaugeColor(usage);
+  const label = usage !== null ? `${Math.round(usage)}` : "--";
   const fontSize = label.length > 2 ? "4.5" : "5.5";
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden style={{ display: "block" }}>
-      <rect x="6" y="6" width="12" height="12" rx="2" stroke="rgba(255,255,255,0.60)" strokeWidth="1.4" fill="rgba(255,255,255,0.06)"/>
-      <text x="12" y="12" textAnchor="middle" dominantBaseline="middle" fontSize={fontSize} fill={color} fontFamily="system-ui,sans-serif" fontWeight="700" letterSpacing="-0.3">
+    <svg
+      width="20" height="20" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden style={{ display: "block" }}
+    >
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2" />
+      <path d="M9.5 3.5V6.5M14.5 3.5V6.5M9.5 17.5V20.5M14.5 17.5V20.5M3.5 9.5H6.5M3.5 14.5H6.5M17.5 9.5H20.5M17.5 14.5H20.5" />
+      <text
+        x="12" y="12.3" textAnchor="middle" dominantBaseline="middle"
+        fontSize={fontSize} stroke="none" style={{ fill: color }}
+        fontFamily="ui-monospace,Menlo,Consolas,monospace" fontWeight="700"
+      >
         {label}
       </text>
-      <line x1="9"  y1="3"  x2="9"  y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="12" y1="3"  x2="12" y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="15" y1="3"  x2="15" y2="6"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="9"  y1="18" x2="9"  y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="12" y1="18" x2="12" y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="15" y1="18" x2="15" y2="21" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="3"  y1="9"  x2="6"  y2="9"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="3"  y1="12" x2="6"  y2="12" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="3"  y1="15" x2="6"  y2="15" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="18" y1="9"  x2="21" y2="9"  stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="18" y1="12" x2="21" y2="12" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="18" y1="15" x2="21" y2="15" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   );
 }
 
 function CopyIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden style={{ flexShrink: 0, opacity: 0.45 }}>
-      <rect x="9" y="9" width="13" height="13" rx="2"/>
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-    </svg>
-  );
+  return <Icon name="copy" size={11} style={{ opacity: 0.45 }} />;
 }
 
 function ResizeCorner() {

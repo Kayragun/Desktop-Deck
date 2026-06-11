@@ -1,0 +1,46 @@
+/* ═══════════════════════════════════════════════════════
+   Desktop Deck — Spacing, Radii & Sizing Tokens
+   A tight 4px-based rhythm suited to a dense widget.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Spacing scale (4px base) ────────────────────────*/
+  --dd-space-0:   0;
+  --dd-space-1:   2px;
+  --dd-space-2:   4px;
+  --dd-space-3:   6px;
+  --dd-space-4:   8px;
+  --dd-space-5:   10px;
+  --dd-space-6:   12px;
+  --dd-space-7:   14px;   /* panel side padding */
+  --dd-space-8:   16px;
+  --dd-space-10:  20px;
+  --dd-space-12:  24px;
+
+  /* ── Radii ───────────────────────────────────────────*/
+  --dd-radius-xs:   4px;    /* chips, pills, small btns   */
+  --dd-radius-sm:   6px;    /* fields, rows               */
+  --dd-radius-md:   9px;    /* drawers, tiles inner       */
+  --dd-radius-lg:   11px;   /* action tiles (deck keys)   */
+  --dd-radius-xl:   16px;   /* the panel shell            */
+  --dd-radius-full: 999px;  /* beacons, dots, toasts      */
+
+  /* ── Key / tile geometry ─────────────────────────────*/
+  --dd-key-size:    68px;   /* max deck-key tile          */
+  --dd-key-min:     46px;   /* min deck-key tile          */
+  --dd-key-gap:     7px;    /* grid gap between keys      */
+  --dd-grid-cols:   4;      /* @kind other */
+
+  /* ── Panel envelope ──────────────────────────────────*/
+  --dd-panel-min-w: 280px;
+  --dd-panel-min-h: 520px;
+  --dd-panel-pad:   8px;    /* overlay → panel inset      */
+
+  /* ── Hairline ────────────────────────────────────────*/
+  --dd-hairline: 1px;
+
+  /* ── Semantic aliases ────────────────────────────────*/
+  --radius-tile:  var(--dd-radius-lg);
+  --radius-panel: var(--dd-radius-xl);
+  --gap-grid:     var(--dd-key-gap);
+}

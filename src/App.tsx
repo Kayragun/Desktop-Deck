@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { DecisionDrawer } from "./DecisionDrawer";
 import { StickyNotesDrawer } from "./StickyNotesDrawer";
 import { DropZoneDrawer, DroppedFile } from "./DropZoneDrawer";
@@ -52,6 +52,23 @@ const STATIC_ACTIONS: Action[] = [
   { id: "shortcuts", label: "Shortcuts",    description: "Launch websites, apps, or Windows settings with one click. Manage them in settings." },
 ];
 
+// ─── Key order (drag-to-rearrange) ───────────────────────────────────────────
+
+const KEY_ORDER_LS  = "dd-key-order";
+const KEY_HIDDEN_LS = "dd-key-hidden";
+
+/** Saved order first, then any keys it doesn't know yet (new deck keys,
+    newly shipped actions) appended in their natural order. */
+function buildTileIds(order: string[], deckKeys: DeckKey[]): string[] {
+  const known = [
+    ...STATIC_ACTIONS.map((a) => a.id),
+    ...deckKeys.map((k) => `dk-${k.id}`),
+  ];
+  const out = order.filter((id) => known.includes(id));
+  for (const id of known) if (!out.includes(id)) out.push(id);
+  return out;
+}
+
 export default function App() {
   return <MainView />;
 }
@@ -90,7 +107,128 @@ function MainView() {
   const [inactiveOpacity, setInactiveOpacity] = useState(() =>
     Math.max(0.25, parseFloat(localStorage.getItem("dd-opacity") ?? "0.25"))
   );
+  const [keyOrder, setKeyOrder]   = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(KEY_ORDER_LS) ?? "[]"); }
+    catch { return []; }
+  });
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(KEY_HIDDEN_LS) ?? "[]"); }
+    catch { return []; }
+  });
+  const [deckEdit, setDeckEdit]     = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragMovedRef = useRef(false);   // true while a press has turned into a reorder drag
+  const gridRef      = useRef<HTMLDivElement | null>(null);
+  const tileRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const tileIds = buildTileIds(keyOrder, deckKeys);
+  // Hidden keys stay rendered (dimmed) in edit mode so they can be re-enabled.
+  const visibleTileIds = deckEdit ? tileIds : tileIds.filter((id) => !hiddenKeys.includes(id));
+  const hiddenCount = tileIds.filter((id) => hiddenKeys.includes(id)).length;
+
+  useEffect(() => {
+    if (keyOrder.length) localStorage.setItem(KEY_ORDER_LS, JSON.stringify(keyOrder));
+  }, [keyOrder]);
+
+  useEffect(() => {
+    localStorage.setItem(KEY_HIDDEN_LS, JSON.stringify(hiddenKeys));
+  }, [hiddenKeys]);
+
+  // FLIP: when a reorder shifts the other tiles, slide them from their old
+  // slot to the new one instead of teleporting. Only active during a drag —
+  // measuring every tile on every render forces layout for nothing.
+  useLayoutEffect(() => {
+    if (!draggingId) { tileRectsRef.current = new Map(); return; }
+    const grid = gridRef.current;
+    if (!grid) return;
+    const next = new Map<string, DOMRect>();
+    grid.querySelectorAll<HTMLElement>("[data-tile-id]").forEach((el) => {
+      const id = el.dataset.tileId!;
+      const rect = el.getBoundingClientRect();
+      next.set(id, rect);
+      const prev = tileRectsRef.current.get(id);
+      if (prev && draggingId && id !== draggingId) {
+        const dx = prev.left - rect.left;
+        const dy = prev.top - rect.top;
+        if (dx || dy) {
+          el.animate(
+            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
+            { duration: 140, easing: "cubic-bezier(0.25, 1, 0.5, 1)" }
+          );
+        }
+      }
+    });
+    tileRectsRef.current = next;
+  });
+
+  const toggleDeckEdit = useCallback(() => {
+    setDeckEdit((v) => !v);
+    // Editing is modal for the grid: close any open drawer.
+    setShowSnippets(false);
+    setShowDecision(false);
+    setShowSticky(false);
+    setShowDropZone(false);
+    setShowConverter(false);
+    setShowShortcuts(false);
+    setShowQuickAdd(false);
+    setShowSettings(false);
+  }, []);
+
+  const toggleHidden = useCallback((id: string) => {
+    setHiddenKeys((prev) =>
+      prev.includes(id) ? prev.filter((h) => h !== id) : [...prev, id]
+    );
+  }, []);
+
+  const moveTile = useCallback((src: string, dst: string) => {
+    setKeyOrder((prev) => {
+      const list = buildTileIds(prev, deckKeys);
+      const from = list.indexOf(src);
+      const to   = list.indexOf(dst);
+      if (from < 0 || to < 0 || from === to) return prev;
+      list.splice(from, 1);
+      list.splice(to, 0, src);
+      return list;
+    });
+  }, [deckKeys]);
+
+  // Press = key action; press + ~6px of travel = pick the key up and reorder.
+  const handleKeyPointerDown = useCallback((id: string) => (e: React.PointerEvent) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    setPressed(id);
+    dragMovedRef.current = false;
+    const tile = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let started = false;
+    const onMove = (ev: PointerEvent) => {
+      if (!started) {
+        if (Math.abs(ev.clientX - startX) < 6 && Math.abs(ev.clientY - startY) < 6) return;
+        started = true;
+        dragMovedRef.current = true;   // suppress the action on release
+        setPressed(null);
+        setDraggingId(id);
+        try { tile.setPointerCapture(pointerId); } catch { /* tile may be gone */ }
+      }
+      const over = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)
+        ?.closest<HTMLElement>("[data-tile-id]");
+      const overId = over?.dataset.tileId;
+      if (overId && overId !== id) moveTile(id, overId);
+    };
+    const finish = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", finish);
+      document.removeEventListener("pointercancel", finish);
+      setDraggingId(null);
+      try { tile.releasePointerCapture(pointerId); } catch { /* already released */ }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", finish);
+    document.addEventListener("pointercancel", finish);
+  }, [moveTile]);
 
   useEffect(() => {
     invoke<string>("get_camera_privacy_state").then((s) => setCamState(s as PrivacyState)).catch(() => {});
@@ -337,6 +475,9 @@ function MainView() {
           ? `Opens ${hoveredDeckKey.target} in your browser.`
           : `Launches ${hoveredDeckKey.target}`
         : hoveredAction?.description ?? "";
+  const infoText = deckEdit
+    ? "Click a key to show or hide it. Drag to rearrange."
+    : hoverInfo;
 
   return (
     <div
@@ -364,13 +505,22 @@ function MainView() {
             <div className="brand-badge"><Icon name="deck" size={14} /></div>
             <span className="brand-name">Desktop Deck</span>
           </div>
-          <button
-            className="hide-btn"
-            title="Hide panel"
-            onPointerUp={(e) => { e.stopPropagation(); invoke("hide_window"); }}
-          >
-            <Icon name="close" size={12} />
-          </button>
+          <div className="header-actions">
+            <button
+              className={`hide-btn edit-btn${deckEdit ? " is-active" : ""}`}
+              title={deckEdit ? "Done editing" : "Edit keys"}
+              onPointerUp={(e) => { e.stopPropagation(); toggleDeckEdit(); }}
+            >
+              <Icon name={deckEdit ? "check" : "pencil"} size={12} />
+            </button>
+            <button
+              className="hide-btn"
+              title="Hide panel"
+              onPointerUp={(e) => { e.stopPropagation(); invoke("hide_window"); }}
+            >
+              <Icon name="close" size={12} />
+            </button>
+          </div>
         </header>
 
         <div className="panel-rule" />
@@ -396,58 +546,64 @@ function MainView() {
             </div>
           ) : (
             <>
-              <p className="section-eyebrow">Quick Actions</p>
-              <div className="action-grid">
-                {actions.map((a) => (
-                  <button
-                    key={a.id}
-                    className={[
-                      "action-btn",
-                      pressed === a.id ? "is-pressed" : "",
-                      (a.id === "mic"    && micState  === "denied")    ? "is-denied"    : "",
-                      (a.id === "mic"    && micState  === "no_device") ? "is-no-device" : "",
-                      (a.id === "camera" && camState  === "denied")    ? "is-denied"    : "",
-                      (a.id === "camera" && camState  === "no_device") ? "is-no-device" : "",
-                      a.id === "snippets" && showSnippets ? "is-active" : "",
-                    a.id === "decision" && showDecision   ? "is-active" : "",
-                    a.id === "sticky"   && showSticky    ? "is-active" : "",
-                    a.id === "dropzone"  && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
-                    a.id === "converter" && showConverter  ? "is-active" : "",
-                    a.id === "shortcuts" && showShortcuts  ? "is-active" : "",
-                    ].filter(Boolean).join(" ")}
-                    onPointerDown={() => setPressed(a.id)}
-                    onPointerUp={() => { setPressed(null); runCommand(a.id); }}
-                    onPointerLeave={() => setPressed(null)}
-                    onMouseEnter={() => setHovered(a.id)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <span className="btn-icon">
-                      {a.id === "cpu" ? <CpuIcon usage={cpuUsage} /> : BTN_ICONS[a.id]}
-                    </span>
-                    <span className="btn-label">{a.label}</span>
-                  </button>
-                ))}
-
-                {/* ── User-pinned deck keys (dynamic shortcuts) ── */}
-                {deckKeys.map((k) => (
-                  <button
-                    key={`dk-${k.id}`}
-                    className={["action-btn", pressed === `dk-${k.id}` ? "is-pressed" : ""].filter(Boolean).join(" ")}
-                    title={k.target}
-                    onPointerDown={() => setPressed(`dk-${k.id}`)}
-                    onPointerUp={() => { setPressed(null); launchDeckKey(k); }}
-                    onPointerLeave={() => setPressed(null)}
-                    onMouseEnter={() => setHovered(`dk-${k.id}`)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <span className="btn-icon">
-                      {k.icon
-                        ? <img className="deckkey-img" src={k.icon} alt="" draggable={false} />
-                        : <Icon name={k.kind === "url" ? "shortcuts" : "file"} size={18} />}
-                    </span>
-                    <span className="btn-label">{k.label}</span>
-                  </button>
-                ))}
+              <p className="section-eyebrow">{deckEdit ? "Edit Keys" : "Quick Actions"}</p>
+              <div className={`action-grid${deckEdit ? " is-editing" : ""}`} ref={gridRef}>
+                {/* Static actions and user-pinned deck keys share one
+                    user-arrangeable order; drag a key to rearrange. In edit
+                    mode a click toggles the key's visibility instead. */}
+                {visibleTileIds.map((id) => {
+                  const dk = id.startsWith("dk-") ? deckKeys.find((k) => `dk-${k.id}` === id) : undefined;
+                  const a  = dk ? undefined : actions.find((x) => x.id === id);
+                  if (!dk && !a) return null;
+                  const isHidden = hiddenKeys.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      data-tile-id={id}
+                      className={[
+                        "action-btn",
+                        pressed === id ? "is-pressed" : "",
+                        draggingId === id ? "is-dragging" : "",
+                        deckEdit && isHidden ? "is-hidden-key" : "",
+                        (id === "mic"    && micState  === "denied")    ? "is-denied"    : "",
+                        (id === "mic"    && micState  === "no_device") ? "is-no-device" : "",
+                        (id === "camera" && camState  === "denied")    ? "is-denied"    : "",
+                        (id === "camera" && camState  === "no_device") ? "is-no-device" : "",
+                        id === "snippets"  && showSnippets  ? "is-active" : "",
+                        id === "decision"  && showDecision  ? "is-active" : "",
+                        id === "sticky"    && showSticky    ? "is-active" : "",
+                        id === "dropzone"  && (showDropZone || dropZoneFiles.length > 0) ? "is-active" : "",
+                        id === "converter" && showConverter ? "is-active" : "",
+                        id === "shortcuts" && showShortcuts ? "is-active" : "",
+                      ].filter(Boolean).join(" ")}
+                      title={dk?.target}
+                      onPointerDown={handleKeyPointerDown(id)}
+                      onPointerUp={() => {
+                        setPressed(null);
+                        if (dragMovedRef.current) { dragMovedRef.current = false; return; }
+                        if (deckEdit) { toggleHidden(id); return; }
+                        if (dk) launchDeckKey(dk); else runCommand(id);
+                      }}
+                      onPointerLeave={() => setPressed(null)}
+                      onMouseEnter={() => setHovered(id)}
+                      onMouseLeave={() => setHovered(null)}
+                    >
+                      {deckEdit && (
+                        <span className="key-vis-badge">
+                          <Icon name={isHidden ? "eyeoff" : "eye"} size={11} />
+                        </span>
+                      )}
+                      <span className="btn-icon">
+                        {dk
+                          ? (dk.icon
+                              ? <img className="deckkey-img" src={dk.icon} alt="" draggable={false} />
+                              : <Icon name={dk.kind === "url" ? "shortcuts" : "file"} size={18} />)
+                          : (id === "cpu" ? <CpuIcon usage={cpuUsage} /> : BTN_ICONS[id])}
+                      </span>
+                      <span className="btn-label">{dk ? dk.label : a!.label}</span>
+                    </button>
+                  );
+                })}
 
                 {/* ── Quick Add tile ── */}
                 <button
@@ -606,8 +762,8 @@ function MainView() {
 
               {/* ── Info bar (hover description) ── */}
               {!showSnippets && !showDecision && !showSticky && !showDropZone && !showConverter && !showShortcuts && !showQuickAdd && (
-                <div className={`info-bar${hoverInfo ? " info-bar--visible" : ""}`}>
-                  <span className="info-text">{hoverInfo}</span>
+                <div className={`info-bar${infoText ? " info-bar--visible" : ""}`}>
+                  <span className="info-text">{infoText}</span>
                 </div>
               )}
             </>
@@ -637,7 +793,9 @@ function MainView() {
         {/* ── Status bar ── */}
         <footer className="status-bar">
           <span className="status-beacon" />
-          <span className="status-copy">{actions.length + deckKeys.length} actions ready</span>
+          <span className="status-copy">
+            {tileIds.length - hiddenCount} actions ready{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
+          </span>
         </footer>
 
         {/* ── Resize handle ── */}
@@ -703,7 +861,7 @@ function SysMonItem({ label, value, color }: { label: string; value: number | nu
     <div className="sysmon-item">
       <span className="sysmon-label">{label}</span>
       <div className="sysmon-bar-wrap">
-        <div className="sysmon-bar-fill" style={{ width: `${pct}%`, background: color }} />
+        <div className="sysmon-bar-fill" style={{ transform: `scaleX(${pct / 100})`, background: color }} />
       </div>
       <span className="sysmon-pct" style={{ color }}>{value !== null ? `${Math.round(pct)}%` : "—"}</span>
     </div>

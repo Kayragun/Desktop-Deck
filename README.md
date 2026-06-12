@@ -21,6 +21,7 @@ The UI follows a custom **black-first design system**: translucent near-black gl
 - **Custom monoline icon set** — every key uses a hand-built 24×24 icon (1.7&nbsp;px stroke, round caps), drawn in one coherent family. No emoji, no icon fonts. The full set lives in `src/Icon.tsx` (`ICON_PATHS`).
 - **Live gauge colors** — CPU/GPU/RAM bars recolor by load: green ≤ 50%, amber 51–80%, red > 80%.
 - **Dynamic icons** — the Task Manager key renders its live CPU percentage inside the chip glyph, recolored by load.
+- **Brand app icon** — a 2×2 deck of keycaps with the top-right key lit cobalt, used for the installer, exe, and system tray (`src-tauri/icons/`).
 - Design tokens (colors, typography, spacing, effects) live in `src/styles/tokens/`.
 
 ---
@@ -136,7 +137,7 @@ Files are kept in the list as long as the app is running (survive drawer open/cl
 Drag image files (PNG, JPG, JPEG, WEBP, BMP) onto the converter area. Pick a target format, click **Convert**, choose an output folder via the native Windows folder picker, and all files are converted in one go. Conversion is done entirely in Rust via the `image` crate — no external tools required.
 
 ### Mic / Camera Kill-Switch
-Privacy toggles backed by the Windows consent store (OS-level, not per-app). While blocked, **no application** can access the device. The key shows the live state — polled every 4 seconds — and turns red when blocked. If no device exists, the key is disabled and labeled `No Camera` / `No Mic`.
+Privacy toggles backed by the Windows consent store (OS-level, not per-app). Blocking writes both the system-wide and desktop-app (`NonPackaged`) consent values, so while blocked, **no application** — Store or classic desktop — can access the device. The key shows the live state — polled every 4 seconds — and turns red when blocked. If no device exists, the key is disabled and labeled `No Camera` / `No Mic`.
 
 ---
 
@@ -169,6 +170,27 @@ Privacy toggles backed by the Windows consent store (OS-level, not per-app). Whi
 | **VS Code** *(optional)* | Recommended editor with `rust-analyzer` for Rust IntelliSense | [code.visualstudio.com](https://code.visualstudio.com) |
 
 **Why Tauri over Electron?** The release binary is under 10 MB and idles at under 5 MB RAM. Electron-based alternatives typically consume 80–200 MB at idle.
+
+---
+
+## Download & Install
+
+> For end users — no developer tools required.
+
+1. Go to the [**Releases**](https://github.com/Kayragun/Desktop-Deck/releases) page and download the latest `Desktop Deck_x.x.x_x64-setup.exe`
+2. Run the installer — it installs per-user, so **no admin rights are needed**
+3. Launch **Desktop Deck** from the Start Menu — the widget appears on your desktop and the icon settles into the system tray
+
+That's it. The installer is self-contained (~1.5 MB); you can delete it after installing.
+
+**Notes:**
+
+- **Windows 10/11 (64-bit)** is required. The app runs on **WebView2**, which ships with Windows 11 — on Windows 10 the installer downloads it automatically if missing.
+- **SmartScreen:** since the binary is not code-signed, Windows may show *"Windows protected your PC"* on first run. Click **More info → Run anyway**.
+- **Auto-start:** the app registers itself to start with Windows on first launch. Disable it anytime via **Task Manager → Startup Apps**.
+- **Settings live in** `%APPDATA%\Desktop Deck\` — they survive uninstall/reinstall and updates.
+- **Updating:** just run a newer installer over the existing installation.
+- **Uninstalling:** **Settings → Apps → Desktop Deck → Uninstall**, like any Windows app.
 
 ---
 

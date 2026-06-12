@@ -1,5 +1,7 @@
 # Desktop Deck
 
+> *Desktop Deck is a personal project, built and maintained by a single developer. Feedback and issues are welcome.*
+
 A lightweight, always-on-desktop widget for Windows — inspired by Stream Deck. Quick-access keys for system tools, automations, and productivity modules, living permanently on your desktop without cluttering the taskbar.
 
 Built with **Rust + Tauri v2** (backend) and **React + TypeScript** (frontend). Designed from the ground up to consume minimal CPU and RAM.

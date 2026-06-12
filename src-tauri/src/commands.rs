@@ -641,21 +641,29 @@ pub fn toggle_mic() -> Result<String, String> {
 const CONSENT_BASE: &str =
     "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore";
 
+// Windows stores consent in the named value "Value" (not the key's default
+// value). Packaged (Store) apps read the device key itself; classic desktop
+// apps read the NonPackaged subkey — block/allow must cover both.
 fn read_consent(subkey: &str) -> Option<String> {
     let path = format!("{}\\{}", CONSENT_BASE, subkey);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let key = hkcu.open_subkey(&path).ok()?;
-    key.get_value::<String, _>("").ok()
+    key.get_value::<String, _>("Value").ok()
 }
 
 fn write_consent(subkey: &str, value: &str) -> Result<(), String> {
-    let path = format!("{}\\{}", CONSENT_BASE, subkey);
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let key = match hkcu.open_subkey_with_flags(&path, KEY_WRITE) {
-        Ok(k) => k,
-        Err(_) => hkcu.create_subkey(&path).map_err(|e| e.to_string())?.0,
-    };
-    key.set_value("", &value.to_string()).map_err(|e| e.to_string())
+    for path in [
+        format!("{}\\{}", CONSENT_BASE, subkey),
+        format!("{}\\{}\\NonPackaged", CONSENT_BASE, subkey),
+    ] {
+        let key = match hkcu.open_subkey_with_flags(&path, KEY_WRITE) {
+            Ok(k) => k,
+            Err(_) => hkcu.create_subkey(&path).map_err(|e| e.to_string())?.0,
+        };
+        key.set_value("Value", &value.to_string()).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn detect_camera() -> bool {

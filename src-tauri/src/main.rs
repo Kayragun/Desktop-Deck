@@ -226,6 +226,7 @@ fn main() {
             commands::clear_clipboard,
             commands::copy_to_clipboard,
             commands::open_display,
+            commands::switch_audio_output,
             commands::panic_button,
             commands::toggle_mic,
             commands::get_mic_state,

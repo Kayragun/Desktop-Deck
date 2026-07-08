@@ -24,6 +24,7 @@ const COMMANDS: Record<string, string> = {
   ram:       "flush_ram",
   clipboard: "clear_clipboard",
   display:   "open_display",
+  audio:     "switch_audio_output",
   panic:     "panic_button",
   cpu:       "open_task_manager",
 };
@@ -38,6 +39,7 @@ const STATIC_ACTIONS: Action[] = [
   { id: "folder",    label: "New Folder",   description: "Creates a new empty folder on your Desktop." },
   { id: "clipboard", label: "Clipboard",    description: "Clears the entire Windows clipboard. Useful after copying sensitive data." },
   { id: "display",   label: "Display",      description: "Opens Windows display projection settings (Win+P)." },
+  { id: "audio",     label: "Audio Out",    description: "Switches the default audio output to the next device (headphones ↔ speakers)." },
   { id: "panic",     label: "Panic",        description: "Minimizes all open windows and mutes audio. Mute stays until you restore it." },
   { id: "camera",    label: "Camera",       description: "Camera access is allowed. Click to block all apps (OS-level)." },
   { id: "mic",       label: "Mic On",       description: "Microphone is allowed. Click to block all apps (OS-level)." },
@@ -825,6 +827,7 @@ const BTN_ICONS: Record<string, React.ReactNode> = {
   folder:    <Icon name="folder"    size={18} />,
   clipboard: <Icon name="clipboard" size={18} />,
   display:   <Icon name="display"   size={18} />,
+  audio:     <Icon name="speaker"   size={18} />,
   panic:     <Icon name="panic"     size={18} />,
   ram:       <Icon name="ram"       size={18} />,
   camera:    <Icon name="camera"    size={18} />,

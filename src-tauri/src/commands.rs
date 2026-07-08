@@ -636,6 +636,108 @@ pub fn toggle_mic() -> Result<String, String> {
     }
 }
 
+// ─── Audio Output Switcher ───────────────────────────────────────────────────
+
+// Undocumented-but-stable COM interface Windows' own Sound settings use to
+// change the default endpoint. Only SetDefaultEndpoint is ever called; the
+// leading methods are placeholders that keep the vtable slots aligned.
+#[windows::core::interface("f8679f50-850a-41cf-9c72-430f290290c8")]
+unsafe trait IPolicyConfig: windows::core::IUnknown {
+    fn _GetMixFormat(&self) -> windows::core::HRESULT;
+    fn _GetDeviceFormat(&self) -> windows::core::HRESULT;
+    fn _ResetDeviceFormat(&self) -> windows::core::HRESULT;
+    fn _SetDeviceFormat(&self) -> windows::core::HRESULT;
+    fn _GetProcessingPeriod(&self) -> windows::core::HRESULT;
+    fn _SetProcessingPeriod(&self) -> windows::core::HRESULT;
+    fn _GetShareMode(&self) -> windows::core::HRESULT;
+    fn _SetShareMode(&self) -> windows::core::HRESULT;
+    fn _GetPropertyValue(&self) -> windows::core::HRESULT;
+    fn _SetPropertyValue(&self) -> windows::core::HRESULT;
+    fn SetDefaultEndpoint(
+        &self,
+        device_id: windows::core::PCWSTR,
+        role: windows::Win32::Media::Audio::ERole,
+    ) -> windows::core::HRESULT;
+    fn _SetEndpointVisibility(&self) -> windows::core::HRESULT;
+}
+
+/// Friendly name from the MMDevices registry mirror — avoids the
+/// IPropertyStore/PROPVARIANT dance. `endpoint_id` looks like
+/// "{0.0.0.00000000}.{guid}"; the registry key is the trailing {guid}.
+fn render_device_name(endpoint_id: &str) -> String {
+    let guid = endpoint_id.rsplit('.').next().unwrap_or(endpoint_id);
+    let path = format!(
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render\\{}\\Properties",
+        guid
+    );
+    RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey(&path)
+        .and_then(|k| k.get_value::<String, _>("{a45c254e-df1c-4efd-8020-67d146a850e0},14"))
+        .unwrap_or_else(|_| "next device".into())
+}
+
+#[tauri::command]
+pub fn switch_audio_output() -> Result<String, String> {
+    use windows::{
+        core::PCWSTR,
+        Win32::Media::Audio::{
+            eCommunications, eConsole, eMultimedia, eRender, IMMDevice, IMMDeviceEnumerator,
+            DEVICE_STATE_ACTIVE,
+        },
+        Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_INPROC_SERVER,
+            COINIT_APARTMENTTHREADED,
+        },
+    };
+    const CLSID_POLICY_CONFIG: windows::core::GUID =
+        windows::core::GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9);
+
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let enumerator: IMMDeviceEnumerator =
+            CoCreateInstance(&CLSID_MME, None, CLSCTX_INPROC_SERVER).map_err(|e| e.to_string())?;
+
+        let read_id = |dev: &IMMDevice| -> Result<String, String> {
+            let pw = dev.GetId().map_err(|e| e.to_string())?;
+            let s = pw.to_string().map_err(|e| e.to_string())?;
+            CoTaskMemFree(Some(pw.as_ptr() as *const c_void));
+            Ok(s)
+        };
+
+        let devices = enumerator
+            .EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)
+            .map_err(|e| e.to_string())?;
+        let count = devices.GetCount().map_err(|e| e.to_string())?;
+        if count < 2 {
+            return Err("No other audio output device found".into());
+        }
+
+        let current_id = read_id(
+            &enumerator
+                .GetDefaultAudioEndpoint(eRender, eConsole)
+                .map_err(|e| e.to_string())?,
+        )?;
+        let mut ids: Vec<String> = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            ids.push(read_id(&devices.Item(i).map_err(|e| e.to_string())?)?);
+        }
+        let cur = ids.iter().position(|id| *id == current_id).unwrap_or(0);
+        let next_id = &ids[(cur + 1) % ids.len()];
+
+        let wide: Vec<u16> = next_id.encode_utf16().chain(std::iter::once(0)).collect();
+        let policy: IPolicyConfig = CoCreateInstance(&CLSID_POLICY_CONFIG, None, CLSCTX_INPROC_SERVER)
+            .map_err(|e| e.to_string())?;
+        for role in [eConsole, eMultimedia, eCommunications] {
+            policy
+                .SetDefaultEndpoint(PCWSTR(wide.as_ptr()), role)
+                .ok()
+                .map_err(|e| e.to_string())?;
+        }
+
+        Ok(format!("Output: {}", render_device_name(next_id)))
+    }
+}
+
 // ─── Privacy Kill-Switch (ConsentStore) ──────────────────────────────────────
 
 const CONSENT_BASE: &str =

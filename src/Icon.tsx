@@ -82,6 +82,9 @@ export const ICON_PATHS: Record<string, string> = {
     '<path d="M19 15a7 7 0 0 1-11.5 3.2L5 16"/><path d="M5 19.5V16h3.5"/>',
   shortcuts:
     '<path d="M13.5 2.5L5.5 13h5l-1 8.5L18 11h-5Z"/>',
+  speaker:
+    '<path d="M11.5 5.7L7.3 9.5H4.5v5h2.8l4.2 3.8Z"/>' +
+    '<path d="M14.8 9.3a4 4 0 0 1 0 5.4"/><path d="M17.6 6.7a7.6 7.6 0 0 1 0 10.6"/>',
 
   // ── Utility / chrome ───────────────────────────────────────────────────
   close:    '<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',

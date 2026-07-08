@@ -424,7 +424,7 @@ extern "system" {
 }
 
 #[tauri::command]
-pub fn get_cpu_usage() -> Option<f64> {
+pub async fn get_cpu_usage() -> Option<f64> {
     let mut idle   = FileTime { low: 0, high: 0 };
     let mut kernel = FileTime { low: 0, high: 0 };
     let mut user   = FileTime { low: 0, high: 0 };
@@ -486,7 +486,7 @@ fn gpu_pdh_handle() -> &'static Mutex<Option<GpuPdh>> {
 }
 
 #[tauri::command]
-pub fn get_gpu_usage() -> Option<f64> {
+pub async fn get_gpu_usage() -> Option<f64> {
     let guard = gpu_pdh_handle().lock().ok()?;
     let pdh = guard.as_ref()?;
     unsafe {
@@ -514,7 +514,7 @@ struct MemStatusEx { dw_length: u32, dw_memory_load: u32, _rest: [u64; 7] }
 extern "system" { fn GlobalMemoryStatusEx(buf: *mut MemStatusEx) -> i32; }
 
 #[tauri::command]
-pub fn get_ram_usage() -> Option<f64> {
+pub async fn get_ram_usage() -> Option<f64> {
     let mut ms = MemStatusEx {
         dw_length: std::mem::size_of::<MemStatusEx>() as u32,
         dw_memory_load: 0,
@@ -666,25 +666,36 @@ fn write_consent(subkey: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[link(name = "CfgMgr32")]
+extern "system" {
+    fn CM_Get_Device_Interface_List_SizeW(
+        size: *mut u32,
+        interface_class: *const windows::core::GUID,
+        device_id: *const u16,
+        flags: u32,
+    ) -> u32;
+}
+
 fn detect_camera() -> bool {
-    use std::os::windows::process::CommandExt;
-    let out = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "Get-PnpDevice -Class Camera -Status OK 2>$null | Measure-Object | Select-Object -ExpandProperty Count",
-        ])
-        .creation_flags(0x08000000)
-        .output();
-    match out {
-        Ok(o) => String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().unwrap_or(0) > 0,
-        Err(_) => false,
-    }
+    // KSCATEGORY_VIDEO_CAMERA — every UVC/MF camera registers this interface.
+    const VIDEO_CAMERA: windows::core::GUID =
+        windows::core::GUID::from_u128(0xE5323777_F976_4F5B_9B55_B94699C46E44);
+    const CM_GET_DEVICE_INTERFACE_LIST_PRESENT: u32 = 0;
+    let mut len: u32 = 0;
+    let cr = unsafe {
+        CM_Get_Device_Interface_List_SizeW(
+            &mut len,
+            &VIDEO_CAMERA,
+            core::ptr::null(),
+            CM_GET_DEVICE_INTERFACE_LIST_PRESENT,
+        )
+    };
+    // len == 1 is an empty list (only the terminating NUL).
+    cr == 0 && len > 1
 }
 
 #[tauri::command]
-pub fn get_camera_privacy_state() -> String {
+pub async fn get_camera_privacy_state() -> String {
     if !detect_camera() {
         return "no_device".into();
     }
@@ -702,7 +713,7 @@ pub fn set_camera_privacy(allow: bool) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_mic_privacy_state() -> String {
+pub async fn get_mic_privacy_state() -> String {
     match read_consent("microphone").as_deref() {
         Some("Deny") => "denied",
         _ => "allowed",

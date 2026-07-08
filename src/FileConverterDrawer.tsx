@@ -63,7 +63,7 @@ export function FileConverterDrawer({ showToast }: Props) {
           return [...prev, ...fresh];
         });
         if (unsupported.length > 0) {
-          showToast(`Desteklenmeyen: ${unsupported.join(", ")}`, false);
+          showToast(`Unsupported: ${unsupported.join(", ")}`, false);
         }
       }
     }).then(fn => { unlisten = fn; });
@@ -93,7 +93,7 @@ export function FileConverterDrawer({ showToast }: Props) {
     }
 
     setConverting(false);
-    showToast(ok > 0 ? `${ok} dosya dönüştürüldü` : "Dönüştürme başarısız", ok > 0);
+    showToast(ok > 0 ? `${ok} file${ok > 1 ? "s" : ""} converted` : "Conversion failed", ok > 0);
   };
 
   const convertable = files.filter(f => f.status === "pending" || f.status === "error");

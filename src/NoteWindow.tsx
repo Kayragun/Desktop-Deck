@@ -201,7 +201,7 @@ export function NoteWindow() {
         )}
       </div>
 
-      {/* Settings panel — kalem butonuyla açılır */}
+      {/* Settings panel — opened via the pencil button */}
       {showSettings && (
         <div className="nw-settings-panel">
           <div className="nw-settings-row">

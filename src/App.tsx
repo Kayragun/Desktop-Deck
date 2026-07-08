@@ -431,16 +431,26 @@ function MainView() {
     getCurrentWindow().outerSize().then((s) => { initSize = s; }).catch(() => {});
     try { target.setPointerCapture(pointerId); } catch { /* target may be gone */ }
     const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+    let rafId: number | null = null;
+    let nextW = 0, nextH = 0, sentW = 0, sentH = 0;
+    const apply = () => {
+      rafId = null;
+      if (nextW === sentW && nextH === sentH) return;
+      sentW = nextW; sentH = nextH;
+      invoke("resize_window", { width: nextW, height: nextH }).catch(() => {});
+    };
     const onMove = (ev: PointerEvent) => {
       if (!initSize) return;
-      const newW = Math.round(clamp(initSize.width  + (ev.screenX - startX) * dpr, MIN_W * dpr, MAX_W * dpr));
-      const newH = Math.round(clamp(initSize.height + (ev.screenY - startY) * dpr, MIN_H * dpr, MAX_H * dpr));
-      invoke("resize_window", { width: newW, height: newH }).catch(() => {});
+      nextW = Math.round(clamp(initSize.width  + (ev.screenX - startX) * dpr, MIN_W * dpr, MAX_W * dpr));
+      nextH = Math.round(clamp(initSize.height + (ev.screenY - startY) * dpr, MIN_H * dpr, MAX_H * dpr));
+      if (rafId === null) rafId = requestAnimationFrame(apply);
     };
     const finish = () => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", finish);
       document.removeEventListener("pointercancel", finish);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      apply(); // commit the final size the cancelled frame would have sent
       try { target.releasePointerCapture(pointerId); } catch { /* already released */ }
     };
     document.addEventListener("pointermove", onMove);

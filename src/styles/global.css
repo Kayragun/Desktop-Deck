@@ -2383,7 +2383,7 @@ html, body {
   color: rgba(255, 255, 255, 0.95);
 }
 
-/* ── Font size buttons (settings panel içinde) ───────────────────────────── */
+/* ── Font size buttons (inside settings panel) ───────────────────────────── */
 
 .nw-font-btn {
   background: rgba(255, 255, 255, 0.07);
@@ -2415,7 +2415,7 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ── Opacity slider (settings panel içinde) ─────────────────────────────── */
+/* ── Opacity slider (inside settings panel) ─────────────────────────────── */
 
 .nw-opacity-val {
   font-size: 8px;

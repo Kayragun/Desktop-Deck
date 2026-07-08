@@ -64,7 +64,7 @@ export function StickyNotesDrawer({ showToast }: Props) {
     setNewContent("");
     setNewColor("yellow");
     setAdding(false);
-    showToast("Not eklendi", true);
+    showToast("Note added", true);
   };
 
   const deleteNote = (id: string) => {
@@ -112,7 +112,7 @@ export function StickyNotesDrawer({ showToast }: Props) {
         <span className="snippets-eyebrow">Sticky Notes</span>
         <button className="snippets-settings-btn" onPointerUp={(e) => { e.stopPropagation(); toggleAdd(); }}>
           {adding ? <Icon name="close" size={9} /> : <Icon name="plus" size={9} />}
-          {adding ? " İptal" : " Ekle"}
+          {adding ? " Cancel" : " Add"}
         </button>
       </div>
 
@@ -181,14 +181,14 @@ export function StickyNotesDrawer({ showToast }: Props) {
                   {/* Pin to Desktop button */}
                   <button
                     className={`sticky-pin-btn${desktopNotes.has(note.id) ? " is-pinned" : ""}`}
-                    title={desktopNotes.has(note.id) ? "Masaüstünden kaldır" : "Masaüstüne ekle"}
+                    title={desktopNotes.has(note.id) ? "Remove from desktop" : "Show on desktop"}
                     onPointerUp={(e) => { e.stopPropagation(); toggleDesktop(note); }}
                   >
                     <Icon name="pin" size={10} />
                   </button>
                   <button
                     className="sticky-delete-btn"
-                    title="Notu sil"
+                    title="Delete note"
                     onPointerUp={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                   >
                     <Icon name="close" size={9} />

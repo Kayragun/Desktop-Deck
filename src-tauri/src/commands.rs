@@ -643,7 +643,11 @@ pub fn toggle_mic() -> Result<String, String> {
 // leading methods are placeholders that keep the vtable slots aligned.
 #[windows::core::interface("f8679f50-850a-41cf-9c72-430f290290c8")]
 unsafe trait IPolicyConfig: windows::core::IUnknown {
-    fn _GetMixFormat(&self) -> windows::core::HRESULT;
+    fn GetMixFormat(
+        &self,
+        device_id: windows::core::PCWSTR,
+        format: *mut *mut c_void,
+    ) -> windows::core::HRESULT;
     fn _GetDeviceFormat(&self) -> windows::core::HRESULT;
     fn _ResetDeviceFormat(&self) -> windows::core::HRESULT;
     fn _SetDeviceFormat(&self) -> windows::core::HRESULT;
@@ -664,16 +668,26 @@ unsafe trait IPolicyConfig: windows::core::IUnknown {
 /// Friendly name from the MMDevices registry mirror — avoids the
 /// IPropertyStore/PROPVARIANT dance. `endpoint_id` looks like
 /// "{0.0.0.00000000}.{guid}"; the registry key is the trailing {guid}.
+/// Composed as "desc (adapter)" like the Sound settings UI — the precomposed
+/// PKEY_Device_FriendlyName (",14") value is absent on recent Win11 builds.
 fn render_device_name(endpoint_id: &str) -> String {
     let guid = endpoint_id.rsplit('.').next().unwrap_or(endpoint_id);
     let path = format!(
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render\\{}\\Properties",
         guid
     );
-    RegKey::predef(HKEY_LOCAL_MACHINE)
-        .open_subkey(&path)
-        .and_then(|k| k.get_value::<String, _>("{a45c254e-df1c-4efd-8020-67d146a850e0},14"))
-        .unwrap_or_else(|_| "next device".into())
+    let key = match RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(&path) {
+        Ok(k) => k,
+        Err(_) => return "audio device".into(),
+    };
+    let desc: Option<String> = key.get_value("{a45c254e-df1c-4efd-8020-67d146a850e0},2").ok();
+    let adapter: Option<String> = key.get_value("{b3f8fa53-0004-438e-9003-51a46e139bfc},6").ok();
+    match (desc, adapter) {
+        (Some(d), Some(a)) => format!("{d} ({a})"),
+        (Some(d), None)    => d,
+        (None, Some(a))    => a,
+        (None, None)       => "audio device".into(),
+    }
 }
 
 #[tauri::command]
@@ -706,8 +720,8 @@ pub fn switch_audio_output() -> Result<String, String> {
 
         let devices = enumerator
             .EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)
-            .map_err(|e| e.to_string())?;
-        let count = devices.GetCount().map_err(|e| e.to_string())?;
+            .map_err(|e| format!("EnumAudioEndpoints: {e}"))?;
+        let count = devices.GetCount().map_err(|e| format!("GetCount: {e}"))?;
         if count < 2 {
             return Err("No other audio output device found".into());
         }
@@ -722,19 +736,36 @@ pub fn switch_audio_output() -> Result<String, String> {
             ids.push(read_id(&devices.Item(i).map_err(|e| e.to_string())?)?);
         }
         let cur = ids.iter().position(|id| *id == current_id).unwrap_or(0);
-        let next_id = &ids[(cur + 1) % ids.len()];
 
-        let wide: Vec<u16> = next_id.encode_utf16().chain(std::iter::once(0)).collect();
         let policy: IPolicyConfig = CoCreateInstance(&CLSID_POLICY_CONFIG, None, CLSCTX_INPROC_SERVER)
-            .map_err(|e| e.to_string())?;
-        for role in [eConsole, eMultimedia, eCommunications] {
-            policy
-                .SetDefaultEndpoint(PCWSTR(wide.as_ptr()), role)
-                .ok()
-                .map_err(|e| e.to_string())?;
-        }
+            .map_err(|e| format!("PolicyConfig create: {e}"))?;
 
-        Ok(format!("Output: {}", render_device_name(next_id)))
+        // Cycle to the next endpoint Windows will actually accept. Vendor
+        // virtual endpoints (e.g. ASUS Utility's noise-cancelling output)
+        // enumerate as active yet are rejected with E_FAIL — skip those.
+        for step in 1..ids.len() {
+            let candidate = &ids[(cur + step) % ids.len()];
+            let wide: Vec<u16> = candidate.encode_utf16().chain(std::iter::once(0)).collect();
+            if policy.SetDefaultEndpoint(PCWSTR(wide.as_ptr()), eConsole).is_err() {
+                continue;
+            }
+            for role in [eMultimedia, eCommunications] {
+                let _ = policy.SetDefaultEndpoint(PCWSTR(wide.as_ptr()), role);
+            }
+            return Ok(format!("Output: {}", render_device_name(candidate)));
+        }
+        Err("No other switchable audio output found".into())
+    }
+}
+
+#[cfg(test)]
+mod audio_switch_test {
+    // Actually changes the system default output when another usable device
+    // exists — run explicitly: cargo test cycle_output -- --ignored --nocapture
+    #[test]
+    #[ignore = "switches the system default audio device"]
+    fn cycle_output() {
+        println!("switch_audio_output → {:?}", super::switch_audio_output());
     }
 }
 

@@ -6,6 +6,10 @@ A lightweight, always-on-desktop widget for Windows — inspired by Stream Deck.
 
 Built with **Rust + Tauri v2** (backend) and **React + TypeScript** (frontend). Designed from the ground up to consume minimal CPU and RAM.
 
+<p align="center">
+  <img src="docs/screenshots/MainPage.png" alt="Desktop Deck main panel" width="360">
+</p>
+
 ---
 
 ## What it does
@@ -73,6 +77,23 @@ The UI follows a custom **black-first design system**: translucent near-black gl
 - Registers itself in the Windows startup registry on first run
 - Launches silently in the background — no splash screen, no UAC prompt
 - Can be disabled via **Task Manager → Startup Apps**
+
+---
+
+## Screenshots
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/AddKey1.png" width="260"><br><sub>Add Key — pin an app or a URL</sub></td>
+<td align="center"><img src="docs/screenshots/AddKey2.png" width="260"><br><sub>Search your installed apps</sub></td>
+<td align="center"><img src="docs/screenshots/AddKey3.png" width="260"><br><sub>Pinned and ready to launch</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/Snippets1.png" width="260"><br><sub>Snippets — tap to copy</sub></td>
+<td align="center"><img src="docs/screenshots/Snippets2.png" width="260"><br><sub>Manage snippets inline</sub></td>
+<td align="center"><img src="docs/screenshots/StickyNotes2.png" width="260"><br><sub>Sticky note pinned to the desktop</sub></td>
+</tr>
+</table>
 
 ---
 

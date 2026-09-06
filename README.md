@@ -66,7 +66,7 @@ The UI follows a custom **black-first design system**: translucent near-black gl
   - **Click a key** to hide it from the deck or bring it back — hidden keys stay in the edit grid, dimmed with a dashed border and an eye-off badge
   - **Drag a key** to rearrange the grid (also works outside edit mode — hold and drag ~6&nbsp;px)
 - Key order and hidden keys persist across restarts
-- The status bar counts what's live: `15 actions ready · 1 hidden`
+- The status bar counts what's live: `16 actions ready · 1 hidden`
 
 ### System Tray Control
 - Right-click the tray icon to access the menu:
@@ -99,7 +99,7 @@ The UI follows a custom **black-first design system**: translucent near-black gl
 
 ## Action Keys
 
-The deck ships with 16 built-in keys plus your own pinned apps and URLs. Each key shows a monoline icon with a short label; hovering shows a one-line description in the info bar.
+The deck ships with 17 built-in keys plus your own pinned apps and URLs. Each key shows a monoline icon with a short label; hovering shows a one-line description in the info bar.
 
 | Key | Icon (`Icon.tsx`) | Description |
 |---|---|---|
@@ -107,6 +107,7 @@ The deck ships with 16 built-in keys plus your own pinned apps and URLs. Each ke
 | **New Folder** | `folder` | Creates a new empty folder on the Desktop instantly |
 | **Clipboard** | `clipboard` | Wipes the entire Windows clipboard — useful after copying sensitive data |
 | **Display** | `display` | Opens the Windows display projection panel (Win+P equivalent) |
+| **Audio Out** | `speaker` | Switches the default audio output to the next device (headphones ↔ speakers) |
 | **Panic** | `panic` | Minimizes all open windows and mutes system volume simultaneously |
 | **Camera** | `camera` | OS-level camera kill-switch — blocks all apps; shows **No Camera** if no device exists |
 | **Mic On / Mic Off** | `mic` | OS-level microphone kill-switch — the key turns red while blocked |
